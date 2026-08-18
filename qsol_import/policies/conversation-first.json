@@ -1,6 +1,6 @@
 {
   "protocol": "QSOL-IMPORT/POLICY/1",
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "profile": "conversation-first/1",
   "audio": {
     "default": "tombstone"
@@ -12,8 +12,20 @@
     "keep_under_bytes": 10485760
   },
   "documents": {
-    "extract_text": false,
-    "keep_original_under_bytes": 26214400
+    "extract_text": true,
+    "max_extract_bytes": 26214400,
+    "keep_original_under_bytes": 26214400,
+    "inner_archive_limits": {
+      "max_entries": 4096,
+      "max_member_uncompressed_bytes": 33554432,
+      "max_total_uncompressed_bytes": 134217728,
+      "max_compression_ratio": 200.0
+    }
+  },
+  "account_metadata": {
+    "enabled": false,
+    "max_member_bytes": 1048576,
+    "allowlist": []
   },
   "structured_text": {
     "default": "keep"
