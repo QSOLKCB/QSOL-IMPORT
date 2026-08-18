@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import stat
 import tarfile
 import zipfile
 from contextlib import contextmanager
@@ -78,6 +77,7 @@ class SourceArchive:
         max_entries = int(limits["max_entries"])
         max_member = int(limits["max_member_uncompressed_bytes"])
         max_total = int(limits["max_total_uncompressed_bytes"])
+        max_ratio = float(limits["max_compression_ratio"])
         all_members = self._tar.getmembers()
         if len(all_members) > max_entries:
             raise AdapterError("source_entry_limit", "TAR source entry limit exceeded")
@@ -102,6 +102,10 @@ class SourceArchive:
             if total > max_total:
                 raise AdapterError("source_total_limit", "TAR source total uncompressed size limit exceeded")
             files.append(info)
+
+        archive_bytes = self.path.stat().st_size
+        if archive_bytes > 0 and total / archive_bytes > max_ratio:
+            raise AdapterError("source_compression_ratio", "TAR source compression ratio limit exceeded")
 
         self._tar_infos = {info.name: info for info in files}
         self._members = tuple(
