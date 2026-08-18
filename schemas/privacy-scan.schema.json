@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qsol.example/schemas/qsol-import-privacy-scan-1.json",
+  "title": "QSOL-IMPORT Privacy Scan v1",
+  "type": "object",
+  "required": [
+    "protocol",
+    "schema_version",
+    "ruleset_protocol",
+    "ruleset_sha256",
+    "scanned_files",
+    "files_scanned",
+    "files_with_findings",
+    "finding_groups",
+    "finding_occurrences",
+    "rule_receipts",
+    "findings",
+    "raw_matches_emitted",
+    "scan_sha256"
+  ],
+  "properties": {
+    "protocol": {"const": "QSOL-IMPORT/PRIVACY-SCAN/1"},
+    "schema_version": {"const": "1.0.0"},
+    "ruleset_protocol": {"const": "QSOL-IMPORT/PRIVACY-RULESET/1"},
+    "ruleset_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "scanned_files": {"type": "array", "items": {"type": "string"}},
+    "files_scanned": {"type": "integer", "minimum": 0},
+    "files_with_findings": {"type": "integer", "minimum": 0},
+    "finding_groups": {"type": "integer", "minimum": 0},
+    "finding_occurrences": {"type": "integer", "minimum": 0},
+    "rule_receipts": {"type": "array", "items": {"type": "object"}},
+    "findings": {"type": "array", "items": {"type": "object"}},
+    "raw_matches_emitted": {"const": false},
+    "scan_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": false
+}
