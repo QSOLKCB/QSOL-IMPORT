@@ -29,55 +29,93 @@ IMPORT != ROUTING
 ROUTING != RESOLUTION
 RESOLUTION != TRANSPORT
 TRANSPORT != AUTHORITY
+VENDOR_FORMAT != CANONICAL_FORMAT
+VENDOR_PAYLOAD != CANONICAL_RECORD
 CLAIMED_EXECUTION != EXECUTED
 ```
 
-## Current implementation
+## Frozen adapter surface
 
-- Python stdlib only.
-- OpenAI ZIP adapter first.
-- Discovers `conversations.json` and deterministic numbered variants without depending on one complete vendor directory layout.
-- Preserves message graph source order, node ids, parent/child links, source message ids, and original message objects.
-- Resolves attachment context only through exact deterministic keys: exact basename and exact `file-*` / `asset-*` identifiers. No fuzzy matching is allowed on the canonical path.
-- Detects common media from magic bytes before extension fallback.
-- Tombstones audio/video by default.
-- Keeps small images and structured text according to explicit policy.
-- Supports frozen deterministic DOCX body-text extraction as `QSOL-IMPORT/DOCX-BODY-TEXT/1`; PDF and other document formats remain retained/tombstoned unless a separately frozen parser contract exists.
-- Validates the DOCX inner ZIP independently, including traversal, symlink, encryption, duplicate member, size, total-size, and compression-ratio guards; DTD/entity XML is rejected.
-- Supports optional exact-path, top-level-field allow-listed account metadata extraction as `QSOL-IMPORT/OPENAI-ACCOUNT-METADATA/1`. The bundled policy keeps this disabled with an empty allowlist.
-- Emits `QSOL-IMPORT/PRIVACY-SCAN/1` over normalized conversations/messages, extracted text, allow-listed account metadata, and retained structured text. Match values are never copied into the report; only SHA-256 match receipts are emitted.
-- Rejects executables and nested archives in the bootstrap.
-- Rejects ZIP traversal, symlinks, duplicate members, normalized collisions, control-character paths, oversize members, excessive compression ratios, and excessive archive totals.
-- Emits `IMPORT.json`, `CANDIDATE.json`, canonical JSONL conversation/message/tombstone records, classification/statistics/privacy reports, retained files, deterministic extracted text, and `SHA256SUMS`.
+Phase 3 defines:
 
-## Real-snapshot validation
+```text
+QSOL-IMPORT/ADAPTER/1
+QSOL-IMPORT/CONVERSATION/1
+QSOL-IMPORT/MESSAGE/1
+QSOL-IMPORT/PROVENANCE/1
+```
+
+Vendor parsers live under `qsol_import/adapters/`. They may inspect vendor-specific structures, but canonical conversation/message/provenance records must not contain raw vendor objects.
+
+The common runner owns source-container validation, file classification, tombstones, frozen document extraction, privacy scanning, provenance receipts, candidate manifests, checksums, and atomic output commit.
+
+## CLI adapters
+
+```bash
+qsol-import export.zip --adapter openai --output out
+qsol-import export.zip --adapter openai-common --output out-common
+qsol-import grok_data.zip --adapter grok --output grok-out
+qsol-import claude-export.zip --adapter claude --output claude-out
+qsol-import gemini.json --adapter gemini --output gemini-out
+qsol-import github-migration.tar.gz --adapter github --output github-out
+qsol-import conversations.jsonl --adapter generic --output generic-out
+```
+
+`openai` remains the Phase 1 hardened implementation. `openai-common` is additive and projects the same source graph through the frozen Phase 3 vendor-neutral contracts.
+
+## Grok / xAI adapter
+
+Deterministic discovery requires exactly one archive member whose basename is `prod-grok-backend.json`.
+
+Observed source shape:
+
+```text
+conversations[]
+  conversation
+  responses[]
+    response
+```
+
+The adapter preserves visible source conversation/response ids, parent-child links, sender, message text, timestamps, model, partial status, and exact `file_attachments`. It does not normalize `agent_thinking_traces`.
+
+Hard source dispositions:
+
+- `prod-mc-auth-mgmt-api.json` -> REJECT;
+- `prod-mc-billing.json` -> REJECT;
+- `prod-mc-asset-server/**` -> TOMBSTONE;
+- `canvas_thumbnails/**` -> TOMBSTONE.
+
+Asset-server identifiers are matched exactly to normalized message attachment references for tombstone semantic context.
+
+## Claude / Gemini / GitHub / generic
+
+- Claude supports a narrow `conversations.json` shape containing `chat_messages`.
+- Gemini supports a narrow conversation/entry shape or a flat conversation-keyed array.
+- GitHub supports migration TAR/TAR.GZ metadata resources for issue/pull-request thread material; attachment payloads are tombstoned and repository Git payloads are rejected from this conversation surface.
+- Generic JSON accepts conversations with message arrays; generic JSONL requires an exact conversation/thread/chat id per row.
+
+Unknown layouts fail closed. Adapter existence is not evidence that every historical or future vendor export revision has been validated.
+
+## Source-container boundary
+
+The common runner accepts ZIP, TAR/TAR.GZ, JSON, and JSONL.
+
+It rejects traversal, non-canonical backslash paths, control-character paths, duplicate/normalized collisions, links/devices/non-regular TAR members, oversized members/totals, and excessive compression ratios. Source bytes are never modified and are re-hashed before output commit.
+
+## Phase 1 OpenAI hardening retained
+
+- Discovers `conversations.json` and deterministic numbered variants.
+- Preserves graph source order, node ids, parent/child links, source message ids, and original message objects on the legacy OpenAI surface.
+- Resolves attachment context only through exact deterministic keys.
+- Supports frozen deterministic DOCX body-text extraction as `QSOL-IMPORT/DOCX-BODY-TEXT/1`.
+- Supports optional exact-path, top-level-field allow-listed account metadata extraction, disabled by default.
+- Emits `QSOL-IMPORT/PRIVACY-SCAN/1`; match values are never copied into the report, only SHA-256 match receipts.
+
+## Real OpenAI snapshot validation
 
 `python -m qsol_import.validation export-old.zip export-new.zip --output validation.json`
 
-The validation harness requires at least two snapshots. Each snapshot is imported twice and the complete emitted trees are compared. The validation receipt contains source hashes and import statistics but does not emit source paths or persist source export bytes.
-
-Synthetic fixtures do **not** satisfy the roadmap claim "validated against multiple real personal ChatGPT export snapshots". That checkbox may only be closed after actual local snapshots are run.
-
-## Optional account metadata policy
-
-Enable account metadata only with exact source paths and exact top-level fields, for example:
-
-```json
-{
-  "account_metadata": {
-    "enabled": true,
-    "max_member_bytes": 1048576,
-    "allowlist": [
-      {
-        "path": "user.json",
-        "fields": ["id", "email"]
-      }
-    ]
-  }
-}
-```
-
-Do not infer metadata filenames, field aliases, or nested paths. Unknown paths remain subject to normal file classification.
+The validation harness requires at least two byte-distinct snapshots, imports each twice, and compares complete emitted trees. Synthetic fixtures do **not** satisfy the roadmap claim "validated against multiple real personal ChatGPT export snapshots".
 
 ## THOTH relationship
 
