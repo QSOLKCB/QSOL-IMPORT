@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qsol.example/schemas/qsol-import-adapter-1.json",
+  "title": "QSOL-IMPORT Adapter v1",
+  "type": "object",
+  "required": ["protocol", "schema_version", "adapter_id", "source_vendor", "source_type", "canonical_conversation_protocol", "canonical_message_protocol", "canonical_provenance_protocol", "vendor_payload_in_canonical_records"],
+  "properties": {
+    "protocol": {"const": "QSOL-IMPORT/ADAPTER/1"},
+    "schema_version": {"const": "1.0.0"},
+    "adapter_id": {"type": "string", "minLength": 1},
+    "source_vendor": {"type": "string", "minLength": 1},
+    "source_type": {"type": "string", "minLength": 1},
+    "canonical_conversation_protocol": {"const": "QSOL-IMPORT/CONVERSATION/1"},
+    "canonical_message_protocol": {"const": "QSOL-IMPORT/MESSAGE/1"},
+    "canonical_provenance_protocol": {"const": "QSOL-IMPORT/PROVENANCE/1"},
+    "vendor_payload_in_canonical_records": {"const": false}
+  },
+  "additionalProperties": false
+}
