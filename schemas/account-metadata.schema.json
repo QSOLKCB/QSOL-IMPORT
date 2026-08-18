@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qsol.example/schemas/qsol-import-openai-account-metadata-1.json",
+  "title": "QSOL-IMPORT OpenAI Account Metadata v1",
+  "type": "object",
+  "required": [
+    "protocol",
+    "schema_version",
+    "source_path",
+    "allowlisted_fields",
+    "present_fields",
+    "metadata"
+  ],
+  "properties": {
+    "protocol": {"const": "QSOL-IMPORT/OPENAI-ACCOUNT-METADATA/1"},
+    "schema_version": {"const": "1.0.0"},
+    "source_path": {"type": "string", "minLength": 1},
+    "allowlisted_fields": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "uniqueItems": true},
+    "present_fields": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "metadata": {"type": "object"}
+  },
+  "additionalProperties": false
+}
