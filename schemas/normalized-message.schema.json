@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qsol.example/schemas/qsol-import-normalized-message-1.json",
+  "title": "QSOL-IMPORT Canonical Message v1",
+  "type": "object",
+  "required": ["protocol", "adapter_protocol", "adapter_id", "source_vendor", "source_type", "source_path", "source_index", "source_message_id", "source_parent_id", "source_children_ids", "conversation_id", "role", "name", "create_time", "update_time", "model", "status", "text", "attachment_refs"],
+  "properties": {
+    "protocol": {"const": "QSOL-IMPORT/MESSAGE/1"},
+    "adapter_protocol": {"const": "QSOL-IMPORT/ADAPTER/1"},
+    "adapter_id": {"type": "string", "minLength": 1},
+    "source_vendor": {"type": "string", "minLength": 1},
+    "source_type": {"type": "string", "minLength": 1},
+    "source_path": {"type": "string", "minLength": 1},
+    "source_index": {"type": "integer", "minimum": 0},
+    "source_message_id": {"type": ["string", "null"]},
+    "source_parent_id": {"type": ["string", "null"]},
+    "source_children_ids": {"type": "array", "items": {"type": "string"}},
+    "conversation_id": {"type": ["string", "null"]},
+    "role": {"type": ["string", "null"]},
+    "name": {"type": ["string", "null"]},
+    "create_time": {"type": ["number", "string", "null"]},
+    "update_time": {"type": ["number", "string", "null"]},
+    "model": {"type": ["string", "null"]},
+    "status": {"type": ["string", "null"]},
+    "text": {"type": "string"},
+    "attachment_refs": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+  },
+  "additionalProperties": false
+}
