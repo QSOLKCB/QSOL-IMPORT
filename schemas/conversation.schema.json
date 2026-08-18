@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qsol.example/schemas/qsol-import-conversation-1.json",
+  "title": "QSOL-IMPORT Canonical Conversation v1",
+  "type": "object",
+  "required": ["protocol", "adapter_protocol", "adapter_id", "source_vendor", "source_type", "source_path", "source_index", "source_conversation_id", "title", "create_time", "update_time"],
+  "properties": {
+    "protocol": {"const": "QSOL-IMPORT/CONVERSATION/1"},
+    "adapter_protocol": {"const": "QSOL-IMPORT/ADAPTER/1"},
+    "adapter_id": {"type": "string", "minLength": 1},
+    "source_vendor": {"type": "string", "minLength": 1},
+    "source_type": {"type": "string", "minLength": 1},
+    "source_path": {"type": "string", "minLength": 1},
+    "source_index": {"type": "integer", "minimum": 0},
+    "source_conversation_id": {"type": ["string", "null"]},
+    "title": {"type": ["string", "null"]},
+    "create_time": {"type": ["number", "string", "null"]},
+    "update_time": {"type": ["number", "string", "null"]}
+  },
+  "additionalProperties": false
+}
