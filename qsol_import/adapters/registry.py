@@ -8,6 +8,7 @@ from qsol_import.adapters.gemini import GeminiAdapter
 from qsol_import.adapters.generic import GenericAdapter
 from qsol_import.adapters.github import GitHubAdapter
 from qsol_import.adapters.grok import GrokAdapter
+from qsol_import.adapters.openai_contract import OpenAIContractAdapter
 
 
 _ADAPTERS: dict[str, Adapter] = {
@@ -16,6 +17,7 @@ _ADAPTERS: dict[str, Adapter] = {
     "gemini": GeminiAdapter(),
     "github": GitHubAdapter(),
     "generic": GenericAdapter(),
+    "openai-common": OpenAIContractAdapter(),
 }
 
 
