@@ -10,6 +10,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any, BinaryIO
 
 from qsol_import import __version__
+from qsol_import.account import account_metadata_config, filter_account_metadata
 from qsol_import.adapters.openai import (
     context_for,
     conversation_file_sort_key,
@@ -30,6 +31,12 @@ from qsol_import.canonical import (
     sha256_stream,
 )
 from qsol_import.classify import classify_file
+from qsol_import.documents import (
+    DocumentExtractionError,
+    extract_document_text,
+    frozen_extractor_contract,
+)
+from qsol_import.privacy import scan_files
 
 
 def _load_policy(path: Path) -> tuple[dict[str, Any], bytes]:
@@ -48,6 +55,12 @@ def _copy_stream(source: BinaryIO, destination: Path) -> str:
             digest.update(chunk)
             out.write(chunk)
     return digest.hexdigest()
+
+
+def _write_bytes(destination: Path, data: bytes) -> str:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_bytes(data)
+    return sha256_bytes(data)
 
 
 def _hash_stream(source: BinaryIO) -> str:
@@ -144,6 +157,49 @@ def _write_tombstone(
     handle.write(canonical_json_bytes(tombstone))
 
 
+def _fallback_document_disposition(
+    *,
+    zf: zipfile.ZipFile,
+    info: zipfile.ZipInfo,
+    output_dir: Path,
+    record: dict[str, Any],
+    counts: dict[str, int],
+    tombstone_out: BinaryIO,
+    classification,
+    refs,
+    policy: dict[str, Any],
+    fallback_reason: str,
+) -> None:
+    keep_limit = int(policy["documents"]["keep_original_under_bytes"])
+    if info.file_size <= keep_limit:
+        with zf.open(info, "r") as handle:
+            record["sha256"] = _copy_stream(
+                handle,
+                _safe_output_path(output_dir / "retained", info.filename),
+            )
+        record["decision"] = "keep"
+        record["reason"] = fallback_reason
+        counts["extract"] -= 1
+        counts["keep"] += 1
+        return
+
+    with zf.open(info, "r") as handle:
+        object_sha = _hash_stream(handle)
+    record["sha256"] = object_sha
+    record["decision"] = "tombstone"
+    record["reason"] = "document_over_retention_limit"
+    counts["extract"] -= 1
+    counts["tombstone"] += 1
+    _write_tombstone(
+        tombstone_out,
+        info=info,
+        object_sha=object_sha,
+        classification=classification,
+        reason="document_over_retention_limit",
+        refs=refs,
+    )
+
+
 def _build_import(
     source_handle: BinaryIO,
     *,
@@ -157,13 +213,21 @@ def _build_import(
     (output_dir / "messages").mkdir()
     (output_dir / "tombstones").mkdir()
     (output_dir / "retained").mkdir()
+    (output_dir / "extracted").mkdir()
+    (output_dir / "account").mkdir()
     (output_dir / "reports").mkdir()
 
     classifications: list[dict[str, Any]] = []
     counts = {"keep": 0, "extract": 0, "tombstone": 0, "reject": 0}
     conversation_count = 0
     message_count = 0
+    document_text_count = 0
+    account_metadata_count = 0
     refs_sets = defaultdict(set)
+    scan_paths: set[str] = {
+        "conversations/conversations.jsonl",
+        "messages/messages.jsonl",
+    }
 
     source_handle.seek(0)
     with zipfile.ZipFile(source_handle, "r") as zf:
@@ -236,6 +300,40 @@ def _build_import(
             for info in sorted(zf.infolist(), key=lambda item: item.filename.encode("utf-8")):
                 if info.is_dir() or is_conversation_file(info.filename):
                     continue
+
+                metadata_config = account_metadata_config(policy, info.filename)
+                if metadata_config is not None:
+                    if info.file_size > metadata_config.max_member_bytes:
+                        raise UnsafeArchiveError(
+                            f"allow-listed account metadata member too large: {info.filename!r}"
+                        )
+                    with zf.open(info, "r") as handle:
+                        data = handle.read()
+                    source_object_sha = sha256_bytes(data)
+                    filtered = filter_account_metadata(data, metadata_config)
+                    destination = _safe_output_path(output_dir / "account", info.filename)
+                    output_sha = _write_bytes(destination, canonical_json_bytes(filtered))
+                    rel = destination.relative_to(output_dir).as_posix()
+                    scan_paths.add(rel)
+                    counts["extract"] += 1
+                    account_metadata_count += 1
+                    classifications.append(
+                        {
+                            "path": info.filename,
+                            "size_bytes": info.file_size,
+                            "kind": "account_metadata",
+                            "media_type": "application/json",
+                            "decision": "extract",
+                            "reason": "account_metadata_allowlist",
+                            "sha256": source_object_sha,
+                            "output_path": rel,
+                            "output_sha256": output_sha,
+                            "allowlisted_fields": filtered["allowlisted_fields"],
+                            "present_fields": filtered["present_fields"],
+                        }
+                    )
+                    continue
+
                 with zf.open(info, "r") as handle:
                     head = handle.read(512)
                 classification = classify_file(info.filename, info.file_size, head, policy)
@@ -253,37 +351,94 @@ def _build_import(
                             handle,
                             _safe_output_path(output_dir / "retained", info.filename),
                         )
+                    if classification.kind == "structured_text":
+                        scan_paths.add(
+                            _safe_output_path(output_dir / "retained", info.filename)
+                            .relative_to(output_dir)
+                            .as_posix()
+                        )
                 elif classification.decision == "extract":
                     if classification.kind != "document":
                         raise ValueError(
                             f"unsupported extract policy for {classification.kind}: {info.filename!r}"
                         )
-                    limit = int(policy["documents"]["keep_original_under_bytes"])
-                    if info.file_size <= limit:
+
+                    document_policy = policy["documents"]
+                    extractor_contract = frozen_extractor_contract(classification.media_type)
+                    extract_text = bool(document_policy.get("extract_text", False))
+                    max_extract_bytes = int(
+                        document_policy.get(
+                            "max_extract_bytes",
+                            document_policy["keep_original_under_bytes"],
+                        )
+                    )
+
+                    if extract_text and extractor_contract is not None and info.file_size <= max_extract_bytes:
                         with zf.open(info, "r") as handle:
-                            record["sha256"] = _copy_stream(
-                                handle,
-                                _safe_output_path(output_dir / "retained", info.filename),
+                            data = handle.read()
+                        record["sha256"] = sha256_bytes(data)
+                        record["extractor_contract"] = extractor_contract
+                        try:
+                            extraction = extract_document_text(
+                                data,
+                                classification.media_type,
+                                document_policy,
                             )
-                        record["decision"] = "keep"
-                        record["reason"] = "document_retained_pending_extractor"
-                        counts["extract"] -= 1
-                        counts["keep"] += 1
+                        except DocumentExtractionError as exc:
+                            record["extraction_error_code"] = exc.code
+                            _fallback_document_disposition(
+                                zf=zf,
+                                info=info,
+                                output_dir=output_dir,
+                                record=record,
+                                counts=counts,
+                                tombstone_out=tombstone_out,
+                                classification=classification,
+                                refs=refs,
+                                policy=policy,
+                                fallback_reason="document_retained_extractor_error",
+                            )
+                        else:
+                            destination = _safe_output_path(
+                                output_dir / "extracted" / "documents",
+                                info.filename + ".txt",
+                            )
+                            extracted_sha = _write_bytes(destination, extraction.text_bytes)
+                            rel = destination.relative_to(output_dir).as_posix()
+                            scan_paths.add(rel)
+                            record.update(
+                                {
+                                    "reason": "document_text_extracted",
+                                    "extractor_contract": extraction.contract,
+                                    "extracted_path": rel,
+                                    "extracted_sha256": extracted_sha,
+                                    "extracted_size_bytes": len(extraction.text_bytes),
+                                }
+                            )
+                            keep_limit = int(document_policy["keep_original_under_bytes"])
+                            if info.file_size <= keep_limit:
+                                retained = _safe_output_path(output_dir / "retained", info.filename)
+                                _write_bytes(retained, data)
+                                record["original_retained_path"] = retained.relative_to(output_dir).as_posix()
+                            document_text_count += 1
                     else:
-                        with zf.open(info, "r") as handle:
-                            object_sha = _hash_stream(handle)
-                        record["sha256"] = object_sha
-                        record["decision"] = "tombstone"
-                        record["reason"] = "document_over_retention_limit"
-                        counts["extract"] -= 1
-                        counts["tombstone"] += 1
-                        _write_tombstone(
-                            tombstone_out,
+                        if not extract_text:
+                            fallback_reason = "document_retained_text_extraction_disabled"
+                        elif extractor_contract is None:
+                            fallback_reason = "document_retained_no_frozen_extractor"
+                        else:
+                            fallback_reason = "document_retained_over_extract_limit"
+                        _fallback_document_disposition(
+                            zf=zf,
                             info=info,
-                            object_sha=object_sha,
+                            output_dir=output_dir,
+                            record=record,
+                            counts=counts,
+                            tombstone_out=tombstone_out,
                             classification=classification,
-                            reason="document_over_retention_limit",
                             refs=refs,
+                            policy=policy,
+                            fallback_reason=fallback_reason,
                         )
                 elif classification.decision == "tombstone":
                     with zf.open(info, "r") as handle:
@@ -307,6 +462,11 @@ def _build_import(
         canonical_json_bytes(classifications)
     )
 
+    privacy_report = scan_files(output_dir, scan_paths)
+    (output_dir / "reports" / "privacy-scan.json").write_bytes(
+        canonical_json_bytes(privacy_report)
+    )
+
     stats = {
         "protocol": "QSOL-IMPORT/STATISTICS/1",
         "source_type": "openai.export",
@@ -318,6 +478,10 @@ def _build_import(
         "files_extracted": counts["extract"],
         "files_tombstoned": counts["tombstone"],
         "files_rejected": counts["reject"],
+        "documents_text_extracted": document_text_count,
+        "account_metadata_files": account_metadata_count,
+        "privacy_finding_occurrences": privacy_report["finding_occurrences"],
+        "privacy_files_with_findings": privacy_report["files_with_findings"],
     }
     (output_dir / "reports" / "statistics.json").write_bytes(canonical_json_bytes(stats))
 
