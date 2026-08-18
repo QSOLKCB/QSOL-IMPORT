@@ -35,6 +35,8 @@
     "output_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "candidate_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "receipt_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "adapter_id": {"type": "string", "minLength": 1},
+    "provenance_records": {"type": "integer", "minimum": 0},
     "conversations": {"type": "integer", "minimum": 0},
     "messages": {"type": "integer", "minimum": 0},
     "files_seen": {"type": "integer", "minimum": 0},
