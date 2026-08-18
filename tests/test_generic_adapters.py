@@ -1,7 +1,7 @@
 import json
 import unittest
 
-from qsol_import.adapter_contract import SourceMember
+from qsol_import.adapter_contract import AdapterError, SourceMember
 from qsol_import.adapters.claude import ClaudeAdapter
 from qsol_import.adapters.gemini import GeminiAdapter
 from qsol_import.adapters.generic import GenericAdapter
@@ -77,6 +77,23 @@ class GenericAdapterContractTests(unittest.TestCase):
         result_jsonl = adapter.parse({"input.jsonl": jsonl})
         self.assertEqual(len(result_jsonl.conversations), 1)
         self.assertEqual([row["text"] for row in result_jsonl.messages], ["a", "b"])
+
+    def test_generic_json_rejects_non_object_message_without_silent_loss(self):
+        adapter = GenericAdapter()
+        payload = {
+            "conversations": [
+                {
+                    "id": "x",
+                    "messages": [
+                        {"id": "1", "role": "user", "text": "kept"},
+                        "truncated-message",
+                    ],
+                }
+            ]
+        }
+        with self.assertRaises(AdapterError) as ctx:
+            adapter.parse({"input.json": json.dumps(payload).encode()})
+        self.assertEqual(ctx.exception.code, "invalid_generic_message")
 
     def test_adapter_discovery_is_explicit_not_fuzzy(self):
         claude = ClaudeAdapter()
