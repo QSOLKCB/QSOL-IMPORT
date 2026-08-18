@@ -78,34 +78,42 @@ class SourceArchive:
         max_member = int(limits["max_member_uncompressed_bytes"])
         max_total = int(limits["max_total_uncompressed_bytes"])
         max_ratio = float(limits["max_compression_ratio"])
-        all_members = self._tar.getmembers()
-        if len(all_members) > max_entries:
-            raise AdapterError("source_entry_limit", "TAR source entry limit exceeded")
+        archive_bytes = self.path.stat().st_size
 
         seen_names: set[str] = set()
         seen_normalized: set[str] = set()
         total = 0
+        entry_count = 0
         files: list[tarfile.TarInfo] = []
-        for info in all_members:
+
+        # TarFile iteration is incremental: each TarInfo header is returned before
+        # advancing over that member's payload. Enforce limits immediately so an
+        # oversized early member or too many tiny entries cannot force a complete
+        # decompression/materialization pass before rejection.
+        for info in self._tar:
+            entry_count += 1
+            if entry_count > max_entries:
+                raise AdapterError("source_entry_limit", "TAR source entry limit exceeded")
+
             normalized = _validate_path(info.name)
             if info.name in seen_names or normalized in seen_normalized:
                 raise AdapterError("source_path_collision", f"duplicate/colliding TAR member: {info.name!r}")
             seen_names.add(info.name)
             seen_normalized.add(normalized)
+
             if info.isdir():
                 continue
             if info.issym() or info.islnk() or info.isdev() or not info.isfile():
                 raise AdapterError("unsafe_tar_member", f"non-regular TAR member rejected: {info.name!r}")
             if info.size > max_member:
                 raise AdapterError("source_member_limit", f"TAR member too large: {info.name!r}")
+
             total += info.size
             if total > max_total:
                 raise AdapterError("source_total_limit", "TAR source total uncompressed size limit exceeded")
+            if archive_bytes > 0 and total / archive_bytes > max_ratio:
+                raise AdapterError("source_compression_ratio", "TAR source compression ratio limit exceeded")
             files.append(info)
-
-        archive_bytes = self.path.stat().st_size
-        if archive_bytes > 0 and total / archive_bytes > max_ratio:
-            raise AdapterError("source_compression_ratio", "TAR source compression ratio limit exceeded")
 
         self._tar_infos = {info.name: info for info in files}
         self._members = tuple(
