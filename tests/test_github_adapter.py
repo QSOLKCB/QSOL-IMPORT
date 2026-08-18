@@ -70,6 +70,47 @@ class GitHubAdapterTests(unittest.TestCase):
             tombstone = json.loads((root / "out/tombstones/tombstones.jsonl").read_text())
             self.assertEqual(tombstone["reason"], "github_attachment_payload")
 
+    def test_review_comment_resolves_through_pull_request_review(self):
+        adapter = GitHubAdapter()
+        pull_requests = [
+            {
+                "id": 500,
+                "number": 9,
+                "title": "Review graph",
+                "body": "PR body",
+                "user": {"login": "author"},
+            }
+        ]
+        reviews = [
+            {
+                "id": 600,
+                "pull_request_id": 500,
+                "body": "Review summary",
+                "user": {"login": "reviewer"},
+            }
+        ]
+        review_comments = [
+            {
+                "id": 700,
+                "pull_request_review_id": 600,
+                "body": "Inline review comment",
+                "user": {"login": "reviewer"},
+            }
+        ]
+        result = adapter.parse(
+            {
+                "pull_requests.json": json.dumps(pull_requests).encode(),
+                "pull_request_reviews.json": json.dumps(reviews).encode(),
+                "review_comments.json": json.dumps(review_comments).encode(),
+            }
+        )
+        self.assertEqual(len(result.conversations), 1)
+        self.assertEqual(
+            [row["text"] for row in result.messages],
+            ["PR body", "Review summary", "Inline review comment"],
+        )
+        self.assertTrue(all(row["conversation_id"] == "500" for row in result.messages))
+
     def test_tar_traversal_fails_closed(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
