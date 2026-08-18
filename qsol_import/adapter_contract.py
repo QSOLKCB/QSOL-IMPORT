@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Protocol, Sequence
 
@@ -9,6 +10,45 @@ ADAPTER_SCHEMA_VERSION = "1.0.0"
 CONVERSATION_PROTOCOL = "QSOL-IMPORT/CONVERSATION/1"
 MESSAGE_PROTOCOL = "QSOL-IMPORT/MESSAGE/1"
 PROVENANCE_PROTOCOL = "QSOL-IMPORT/PROVENANCE/1"
+
+_CONVERSATION_KEYS = frozenset(
+    {
+        "protocol",
+        "adapter_protocol",
+        "adapter_id",
+        "source_vendor",
+        "source_type",
+        "source_path",
+        "source_index",
+        "source_conversation_id",
+        "title",
+        "create_time",
+        "update_time",
+    }
+)
+_MESSAGE_KEYS = frozenset(
+    {
+        "protocol",
+        "adapter_protocol",
+        "adapter_id",
+        "source_vendor",
+        "source_type",
+        "source_path",
+        "source_index",
+        "source_message_id",
+        "source_parent_id",
+        "source_children_ids",
+        "conversation_id",
+        "role",
+        "name",
+        "create_time",
+        "update_time",
+        "model",
+        "status",
+        "text",
+        "attachment_refs",
+    }
+)
 
 
 class AdapterError(ValueError):
@@ -179,10 +219,94 @@ def message_record(
     }
 
 
+def _is_nullable_string(value: Any) -> bool:
+    return value is None or isinstance(value, str)
+
+
+def _is_json_time(value: Any) -> bool:
+    if value is None or isinstance(value, str):
+        return True
+    if isinstance(value, bool):
+        return False
+    if isinstance(value, int):
+        return True
+    return isinstance(value, float) and math.isfinite(value)
+
+
+def _is_index(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 0
+
+
+def _require_nonempty_string(record: Mapping[str, Any], key: str, code: str) -> None:
+    value = record.get(key)
+    if not isinstance(value, str) or not value:
+        raise AdapterError(code, f"canonical record field {key!r} must be a non-empty string")
+
+
+def _validate_conversation(record: Any, adapter_id: str) -> None:
+    code = "invalid_conversation_record"
+    if not isinstance(record, dict) or set(record) != _CONVERSATION_KEYS:
+        raise AdapterError(code, "adapter emitted a conversation record that does not match the frozen field set")
+    if record["protocol"] != CONVERSATION_PROTOCOL or record["adapter_protocol"] != ADAPTER_PROTOCOL:
+        raise AdapterError(code, "adapter emitted an invalid conversation protocol")
+    if record["adapter_id"] != adapter_id:
+        raise AdapterError(code, "adapter emitted a conversation record for a different adapter")
+    for key in ("adapter_id", "source_vendor", "source_type", "source_path"):
+        _require_nonempty_string(record, key, code)
+    if not _is_index(record["source_index"]):
+        raise AdapterError(code, "conversation source_index must be a non-negative integer")
+    for key in ("source_conversation_id", "title"):
+        if not _is_nullable_string(record[key]):
+            raise AdapterError(code, f"conversation field {key!r} must be a string or null")
+    for key in ("create_time", "update_time"):
+        if not _is_json_time(record[key]):
+            raise AdapterError(code, f"conversation field {key!r} must be a finite number, string, or null")
+
+
+def _validate_message(record: Any, adapter_id: str) -> None:
+    code = "invalid_message_record"
+    if not isinstance(record, dict) or set(record) != _MESSAGE_KEYS:
+        raise AdapterError(code, "adapter emitted a message record that does not match the frozen field set")
+    if record["protocol"] != MESSAGE_PROTOCOL or record["adapter_protocol"] != ADAPTER_PROTOCOL:
+        raise AdapterError(code, "adapter emitted an invalid message protocol")
+    if record["adapter_id"] != adapter_id:
+        raise AdapterError(code, "adapter emitted a message record for a different adapter")
+    for key in ("adapter_id", "source_vendor", "source_type", "source_path"):
+        _require_nonempty_string(record, key, code)
+    if not _is_index(record["source_index"]):
+        raise AdapterError(code, "message source_index must be a non-negative integer")
+    for key in (
+        "source_message_id",
+        "source_parent_id",
+        "conversation_id",
+        "role",
+        "name",
+        "model",
+        "status",
+    ):
+        if not _is_nullable_string(record[key]):
+            raise AdapterError(code, f"message field {key!r} must be a string or null")
+    for key in ("create_time", "update_time"):
+        if not _is_json_time(record[key]):
+            raise AdapterError(code, f"message field {key!r} must be a finite number, string, or null")
+    if not isinstance(record["text"], str):
+        raise AdapterError(code, "message text must be a string")
+    children = record["source_children_ids"]
+    if not isinstance(children, list) or not all(isinstance(item, str) for item in children):
+        raise AdapterError(code, "message source_children_ids must be an array of strings")
+    refs = record["attachment_refs"]
+    if (
+        not isinstance(refs, list)
+        or not all(isinstance(item, str) for item in refs)
+        or len(refs) != len(set(refs))
+    ):
+        raise AdapterError(code, "message attachment_refs must be a unique array of strings")
+
+
 def validate_result(result: AdapterResult, adapter_id: str) -> None:
+    if not isinstance(result, AdapterResult):
+        raise AdapterError("invalid_adapter_result", "adapter did not return AdapterResult")
     for record in result.conversations:
-        if record.get("protocol") != CONVERSATION_PROTOCOL or record.get("adapter_id") != adapter_id:
-            raise AdapterError("invalid_conversation_record", "adapter emitted a non-conforming conversation record")
+        _validate_conversation(record, adapter_id)
     for record in result.messages:
-        if record.get("protocol") != MESSAGE_PROTOCOL or record.get("adapter_id") != adapter_id:
-            raise AdapterError("invalid_message_record", "adapter emitted a non-conforming message record")
+        _validate_message(record, adapter_id)
