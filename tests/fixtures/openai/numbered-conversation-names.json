@@ -1,0 +1,18 @@
+{
+  "protocol": "QSOL-IMPORT/OPENAI-CONVERSATION-NAME-FIXTURE/1",
+  "accepted": [
+    "conversations.json",
+    "conversations-1.json",
+    "conversations-0002.json",
+    "conversations_0003.json",
+    "conversations4.json",
+    "conversation-5.json"
+  ],
+  "rejected": [
+    "assets/conversations.json",
+    "conversations-final.json",
+    "conversations-.json",
+    "conversation.json.bak",
+    "chat-1.json"
+  ]
+}
