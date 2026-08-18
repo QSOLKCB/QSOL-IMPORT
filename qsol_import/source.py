@@ -39,7 +39,12 @@ class SourceArchive:
         if zipfile.is_zipfile(self.path):
             self.kind = "zip"
             self._zip = zipfile.ZipFile(self.path, "r")
-            validate_archive(self._zip, self.policy)
+            try:
+                validate_archive(self._zip, self.policy)
+            except Exception:
+                self._zip.close()
+                self._zip = None
+                raise
             infos = [info for info in self._zip.infolist() if not info.is_dir()]
             self._zip_infos = {info.filename: info for info in infos}
             self._members = tuple(
@@ -51,7 +56,12 @@ class SourceArchive:
         if tarfile.is_tarfile(self.path):
             self.kind = "tar"
             self._tar = tarfile.open(self.path, "r:*")
-            self._validate_tar()
+            try:
+                self._validate_tar()
+            except Exception:
+                self._tar.close()
+                self._tar = None
+                raise
             return self
 
         if self.path.suffix.casefold() in {".json", ".jsonl"}:
