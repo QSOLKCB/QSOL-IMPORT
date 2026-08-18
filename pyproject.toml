@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qsol-import"
+version = "0.1.0"
+description = "Deterministic, vendor-neutral ingestion for portable AI context"
+requires-python = ">=3.11"
+license = {text = "MPL-2.0"}
+authors = [{name = "QSOL-IMC"}]
+dependencies = []
+
+[project.scripts]
+qsol-import = "qsol_import.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["qsol_import*"]

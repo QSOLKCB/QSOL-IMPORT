@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qsol.example/schemas/qsol-import-tombstone-1.json",
+  "title": "QSOL-IMPORT Tombstone v1",
+  "type": "object",
+  "required": ["protocol", "source_vendor", "original_path", "original_name", "sha256", "size_bytes", "detected_type", "asset_class", "decision", "reason", "semantic_context"],
+  "properties": {
+    "protocol": {"const": "QSOL-IMPORT/TOMBSTONE/1"},
+    "source_vendor": {"type": "string"},
+    "original_path": {"type": "string", "minLength": 1},
+    "original_name": {"type": "string", "minLength": 1},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "size_bytes": {"type": "integer", "minimum": 0},
+    "detected_type": {"type": "string"},
+    "asset_class": {"type": "string"},
+    "decision": {"const": "omit_bytes"},
+    "reason": {"type": "string"},
+    "semantic_context": {"type": "object"}
+  },
+  "additionalProperties": false
+}
