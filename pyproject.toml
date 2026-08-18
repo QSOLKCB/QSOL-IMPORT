@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "qsol-import"
-version = "0.2.0"
+version = "0.3.0"
 description = "Deterministic, vendor-neutral ingestion for portable AI context"
 requires-python = ">=3.11"
 license = {text = "MPL-2.0"}
