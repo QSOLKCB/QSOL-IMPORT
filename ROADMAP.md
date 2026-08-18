@@ -29,15 +29,21 @@ The remaining real-snapshot checkbox is evidence-gated: synthetic fixtures and u
 
 ## Phase 2 — Grok/xAI adapter
 
-- [ ] Implement deterministic Grok export discovery.
-- [ ] Reuse the common classification/tombstone contracts.
-- [ ] Produce the same normalized conversation and provenance surface as the OpenAI adapter.
+- [x] Implement deterministic Grok export discovery from exactly one `prod-grok-backend.json` at any safe archive depth.
+- [x] Reuse the common classification/tombstone contracts, including exact asset-id semantic context and no binary asset copying for xAI asset-server/thumbnail paths.
+- [x] Produce the vendor-neutral `QSOL-IMPORT/CONVERSATION/1`, `QSOL-IMPORT/MESSAGE/1`, and `QSOL-IMPORT/PROVENANCE/1` surface while preserving source ids/order and excluding agent thinking traces.
+
+Phase 2 is fixture-derived from the observed xAI/Grok personal export shape. Authentication and billing sources are exact-basename rejects; `prod-mc-asset-server/**` and `canvas_thumbnails/**` use the common tombstone contract.
 
 ## Phase 3 — Generic adapter contract
 
-- [ ] Freeze a versioned adapter interface.
-- [ ] Add Claude, Gemini, GitHub, and generic JSON/JSONL adapters as independently testable modules.
-- [ ] Keep vendor-specific parsing outside canonical downstream context schemas.
+- [x] Freeze `QSOL-IMPORT/ADAPTER/1` with vendor-neutral conversation, message, and provenance schemas.
+- [x] Add Claude, Gemini, GitHub migration, and generic JSON/JSONL adapters as independently testable modules.
+- [x] Keep vendor-specific parsing outside canonical downstream context schemas; raw vendor objects are prohibited from canonical records.
+- [x] Add a non-breaking `openai-common` projection so Phase 1 OpenAI exports can be rendered into the same Phase 3 contract without changing the existing `openai` CLI behavior.
+- [x] Support guarded ZIP, TAR/TAR.GZ, JSON, and JSONL source containers for the common adapter runner.
+
+Claude and Gemini adapters intentionally support narrow conformance shapes and fail closed on unrecognized layouts. A module being implemented is not a claim that every future vendor export revision has been validated.
 
 ## Phase 4 — QSOL-CONTEXT handoff
 
@@ -71,6 +77,7 @@ ROUTING != RESOLUTION
 RESOLUTION != TRANSPORT
 TRANSPORT != AUTHORITY
 VENDOR_FORMAT != CANONICAL_FORMAT
+VENDOR_PAYLOAD != CANONICAL_RECORD
 DETERMINISTIC_LABEL != AI_INTERPRETATION
 NO_SILENT_DELETION
 CLAIMED_EXECUTION != EXECUTED
