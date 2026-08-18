@@ -26,21 +26,30 @@ def validate_openai_snapshots(sources: list[Path], policy_path: Path) -> dict[st
         raise ValueError("real-snapshot validation requires at least two export ZIPs")
 
     snapshots = []
+    seen_input_sha256: set[str] = set()
     for source in sources:
         with tempfile.TemporaryDirectory(prefix="qsol-import-validation-") as tmp:
             root = Path(tmp)
             receipt_a = import_openai_zip(source, root / "a", policy_path)
+            input_sha256 = receipt_a["input_sha256"]
+            if input_sha256 in seen_input_sha256:
+                raise ValueError(
+                    "real-snapshot validation requires distinct export bytes; "
+                    f"duplicate input SHA-256: {input_sha256}"
+                )
+            seen_input_sha256.add(input_sha256)
+
             receipt_b = import_openai_zip(source, root / "b", policy_path)
             tree_a = _tree_receipt(root / "a")
             tree_b = _tree_receipt(root / "b")
             if tree_a != tree_b:
-                raise ValueError(f"non-deterministic repeated import for input {receipt_a['input_sha256']}")
+                raise ValueError(f"non-deterministic repeated import for input {input_sha256}")
             if receipt_a != receipt_b:
-                raise ValueError(f"non-deterministic receipt for input {receipt_a['input_sha256']}")
+                raise ValueError(f"non-deterministic receipt for input {input_sha256}")
 
             snapshots.append(
                 {
-                    "input_sha256": receipt_a["input_sha256"],
+                    "input_sha256": input_sha256,
                     "output_sha256": receipt_a["output_sha256"],
                     "candidate_sha256": receipt_a["candidate_sha256"],
                     "conversations": receipt_a["conversations"],
@@ -67,7 +76,7 @@ def validate_openai_snapshots(sources: list[Path], policy_path: Path) -> dict[st
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Validate QSOL-IMPORT against two or more local OpenAI export snapshots without persisting source bytes",
+        description="Validate QSOL-IMPORT against two or more distinct local OpenAI export snapshots without persisting source bytes",
     )
     parser.add_argument("sources", nargs="+", type=Path)
     parser.add_argument("--policy", type=Path, default=None)
@@ -78,7 +87,7 @@ def _parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = _parser().parse_args()
     if len(args.sources) < 2:
-        raise SystemExit("provide at least two export ZIP snapshots")
+        raise SystemExit("provide at least two distinct export ZIP snapshots")
 
     if args.policy is not None:
         report = validate_openai_snapshots(args.sources, args.policy)
