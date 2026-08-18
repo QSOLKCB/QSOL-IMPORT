@@ -17,11 +17,12 @@
 
 - [ ] Validate against multiple real personal ChatGPT export snapshots.
 - [ ] Add fixture-derived support for observed numbered conversation file naming variants.
-- [ ] Normalize message graph records while retaining source identifiers and source ordering.
+- [x] Normalize message graph records while retaining source identifiers and source ordering.
 - [ ] Resolve more attachment references without fuzzy matching.
 - [ ] Add deterministic document text extraction only where a parser contract can be frozen and tested.
 - [ ] Add optional allow-listed account metadata import.
 - [ ] Add privacy/secret scanner with deterministic rule receipts.
+- [x] Reject duplicate ZIP member names and non-canonical backslash paths before materialization.
 
 ## Phase 2 — Grok/xAI adapter
 
@@ -37,9 +38,11 @@
 
 ## Phase 4 — QSOL-CONTEXT handoff
 
-- [ ] Define an explicit import-candidate manifest consumable by QSOL-CONTEXT review/export policy.
+- [x] Define an explicit import-candidate manifest consumable by QSOL-CONTEXT review/export policy.
 - [ ] Add deterministic acceptance/rejection receipt handoff without granting QSOL-IMPORT factual authority.
 - [ ] Ensure candidate records can flow into QSOL-CONTROL portable bundle generation without changing THOTH routing receipts.
+
+`QSOL-IMPORT/CANDIDATE-MANIFEST/1` is intentionally candidate-only and assigns no CONCAP roles. QSOL-CONTEXT remains the canonical acceptance/export-policy layer, and its `restore/CONCAP-EXPORT.spec.json` remains responsible for mapping approved pack specs to CONCAP roles.
 
 ## Phase 5 — Evaluation
 
@@ -58,7 +61,9 @@ EXTRACTED != TRUE
 SEMANTIC_PRESERVATION != BYTE_PRESERVATION
 OMITTED_BYTES != OMITTED_MEANING
 TOMBSTONE != SOURCE_OBJECT
+IMPORT != FACTUAL_AUTHORITY
 IMPORT != ROUTING
+CANDIDATE_MANIFEST != CONCAP_EXPORT_SPEC
 ROUTING != RESOLUTION
 RESOLUTION != TRANSPORT
 TRANSPORT != AUTHORITY

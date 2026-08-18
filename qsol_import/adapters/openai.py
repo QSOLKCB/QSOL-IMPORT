@@ -9,8 +9,14 @@ from typing import Any, Iterable
 from qsol_import.canonical import loads_strict
 
 
-CONVERSATION_FILE_RE = re.compile(r"(?:^|/)(?:conversations(?:[-_]?[0-9]+)?|conversation[-_]?[0-9]+)\.json$", re.IGNORECASE)
-MEDIA_NAME_RE = re.compile(r"([^/\\\s\"']+\.(?:wav|wave|mp3|m4a|aac|flac|ogg|opus|mp4|mov|m4v|webm|mkv|png|jpe?g|gif|webp|pdf|docx|pptx))", re.IGNORECASE)
+CONVERSATION_FILE_RE = re.compile(
+    r"(?:^|/)(?P<stem>conversations?)(?:[-_]?(?P<number>[0-9]+))?\.json$",
+    re.IGNORECASE,
+)
+MEDIA_NAME_RE = re.compile(
+    r"([^/\\\s\"']+\.(?:wav|wave|mp3|m4a|aac|flac|ogg|opus|mp4|mov|m4v|webm|mkv|png|jpe?g|gif|webp|pdf|docx|pptx))",
+    re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
@@ -23,6 +29,15 @@ class ConversationContext:
 
 def is_conversation_file(path: str) -> bool:
     return bool(CONVERSATION_FILE_RE.search(path))
+
+
+def conversation_file_sort_key(path: str) -> tuple[bytes, int, bytes]:
+    match = CONVERSATION_FILE_RE.search(path)
+    if match is None:
+        raise ValueError(f"not a conversation file: {path!r}")
+    parent = PurePosixPath(path).parent.as_posix().encode("utf-8")
+    number = int(match.group("number")) if match.group("number") is not None else -1
+    return parent, number, path.encode("utf-8")
 
 
 def load_conversations(data: bytes) -> list[dict[str, Any]]:
@@ -49,6 +64,56 @@ def context_for(conversation: dict[str, Any], source_file: str, source_index: in
     )
 
 
+def iter_message_records(
+    context: ConversationContext,
+    conversation: dict[str, Any],
+) -> Iterable[dict[str, Any]]:
+    mapping = conversation.get("mapping")
+    if not isinstance(mapping, dict):
+        return
+
+    for source_node_index, (node_id, node) in enumerate(mapping.items()):
+        if not isinstance(node, dict):
+            continue
+        message = node.get("message")
+        if not isinstance(message, dict):
+            continue
+
+        author = message.get("author")
+        if not isinstance(author, dict):
+            author = {}
+        content = message.get("content")
+        if not isinstance(content, dict):
+            content = {}
+
+        parent = node.get("parent")
+        children = node.get("children")
+        if not isinstance(children, list):
+            children = []
+
+        message_id = message.get("id")
+        yield {
+            "protocol": "QSOL-IMPORT/OPENAI-MESSAGE/1",
+            "source_file": context.source_file,
+            "source_index": context.source_index,
+            "source_node_index": source_node_index,
+            "source_node_id": str(node_id),
+            "conversation_id": context.conversation_id,
+            "conversation_title": context.title,
+            "source_message_id": str(message_id) if message_id is not None else None,
+            "parent_node_id": str(parent) if parent is not None else None,
+            "children_node_ids": [str(child) for child in children],
+            "author_role": str(author["role"]) if author.get("role") is not None else None,
+            "author_name": str(author["name"]) if author.get("name") is not None else None,
+            "create_time": message.get("create_time"),
+            "update_time": message.get("update_time"),
+            "status": str(message["status"]) if message.get("status") is not None else None,
+            "recipient": str(message["recipient"]) if message.get("recipient") is not None else None,
+            "content_type": str(content["content_type"]) if content.get("content_type") is not None else None,
+            "message": message,
+        }
+
+
 def iter_strings(value: Any) -> Iterable[str]:
     if isinstance(value, str):
         yield value
@@ -60,16 +125,25 @@ def iter_strings(value: Any) -> Iterable[str]:
             yield from iter_strings(item)
 
 
-def build_attachment_reference_index(conversations: list[tuple[ConversationContext, dict[str, Any]]]) -> dict[str, list[ConversationContext]]:
+def build_attachment_reference_index(
+    conversations: list[tuple[ConversationContext, dict[str, Any]]],
+) -> dict[str, list[ConversationContext]]:
     refs: dict[str, set[ConversationContext]] = defaultdict(set)
     for ctx, conversation in conversations:
         for text in iter_strings(conversation):
             for match in MEDIA_NAME_RE.finditer(text):
                 refs[PurePosixPath(match.group(1)).name.lower()].add(ctx)
-    return {key: sorted(value, key=lambda c: (c.source_file, c.source_index)) for key, value in refs.items()}
+    return {
+        key: sorted(value, key=lambda c: (c.source_file, c.source_index))
+        for key, value in refs.items()
+    }
 
 
-def semantic_context_for_path(path: str, kind: str, refs: dict[str, list[ConversationContext]]) -> dict[str, Any]:
+def semantic_context_for_path(
+    path: str,
+    kind: str,
+    refs: dict[str, list[ConversationContext]],
+) -> dict[str, Any]:
     basename = PurePosixPath(path).name
     matches = refs.get(basename.lower(), [])
     result: dict[str, Any] = {
