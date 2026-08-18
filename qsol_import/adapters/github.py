@@ -89,20 +89,29 @@ class GitHubAdapter:
         resources = {path: self._rows(path, raw) for path, raw in payloads.items()}
         comments_by_parent: dict[str, list[tuple[str, int, dict[str, Any]]]] = {}
 
+        # Review comments in migration archives may identify a review instead of the
+        # pull request directly. Build the exact review -> pull-request relationship
+        # first so those comments are not silently orphaned.
+        review_to_pull_request: dict[str, str] = {}
+        for path, rows in resources.items():
+            if self._resource(path) != "pull_request_reviews":
+                continue
+            for row in rows:
+                review_id = first_value(row, ("id", "node_id"))
+                pull_request_id = first_value(row, ("pull_request_id", "subject_id"))
+                if review_id is not None and pull_request_id is not None:
+                    review_to_pull_request[str(review_id)] = str(pull_request_id)
+
         for path, rows in resources.items():
             resource = self._resource(path)
             if resource not in {"issue_comments", "review_comments", "pull_request_reviews"}:
                 continue
             for index, row in enumerate(rows):
-                parent = first_value(
-                    row,
-                    (
-                        "issue_id",
-                        "pull_request_id",
-                        "pull_request_review_id",
-                        "subject_id",
-                    ),
-                )
+                parent = first_value(row, ("issue_id", "pull_request_id", "subject_id"))
+                if parent is None and resource == "review_comments":
+                    review_id = first_value(row, ("pull_request_review_id", "review_id"))
+                    if review_id is not None:
+                        parent = review_to_pull_request.get(str(review_id))
                 if parent is not None:
                     comments_by_parent.setdefault(str(parent), []).append((path, index, row))
 
