@@ -125,7 +125,10 @@ class GenericAdapter:
                     raise AdapterError("generic_missing_messages", f"conversation {conversation_index} lacks a messages array")
                 for message_index, message in enumerate(raw_messages):
                     if not isinstance(message, dict):
-                        continue
+                        raise AdapterError(
+                            "invalid_generic_message",
+                            f"conversation {conversation_index} message {message_index} is not an object",
+                        )
                     record = self._message(source_path, message_index, conversation_id, message)
                     messages.append(record)
 
