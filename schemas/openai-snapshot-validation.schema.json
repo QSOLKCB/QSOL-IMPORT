@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qsol.example/schemas/qsol-import-openai-snapshot-validation-1.json",
+  "title": "QSOL-IMPORT OpenAI Snapshot Validation v1",
+  "type": "object",
+  "required": [
+    "protocol",
+    "schema_version",
+    "snapshot_count",
+    "snapshots",
+    "source_paths_emitted",
+    "source_bytes_persisted",
+    "validation_sha256"
+  ],
+  "properties": {
+    "protocol": {"const": "QSOL-IMPORT/OPENAI-SNAPSHOT-VALIDATION/1"},
+    "schema_version": {"const": "1.0.0"},
+    "snapshot_count": {"type": "integer", "minimum": 2},
+    "snapshots": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": [
+          "input_sha256",
+          "output_sha256",
+          "candidate_sha256",
+          "conversations",
+          "messages",
+          "files_seen",
+          "repeat_byte_identical",
+          "tree_sha256"
+        ],
+        "properties": {
+          "input_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "output_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "candidate_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "conversations": {"type": "integer", "minimum": 0},
+          "messages": {"type": "integer", "minimum": 0},
+          "files_seen": {"type": "integer", "minimum": 0},
+          "repeat_byte_identical": {"const": true},
+          "tree_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "source_paths_emitted": {"const": false},
+    "source_bytes_persisted": {"const": false},
+    "validation_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": false
+}

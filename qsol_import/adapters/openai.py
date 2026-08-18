@@ -13,8 +13,12 @@ CONVERSATION_FILE_RE = re.compile(
     r"^(?P<stem>conversations?)(?:[-_]?(?P<number>[0-9]+))?\.json$",
     re.IGNORECASE,
 )
-MEDIA_NAME_RE = re.compile(
-    r"([^/\\\s\"']+\.(?:wav|wave|mp3|m4a|aac|flac|ogg|opus|mp4|mov|m4v|webm|mkv|png|jpe?g|gif|webp|pdf|docx|pptx))",
+REFERENCE_NAME_RE = re.compile(
+    r"([^/\\\s\"'<>]+\.[A-Za-z0-9]{1,16})(?=$|[/\\\s\"'<>?#])",
+    re.IGNORECASE,
+)
+REFERENCE_ID_RE = re.compile(
+    r"(?<![A-Za-z0-9_-])(?:file|asset)[-_][A-Za-z0-9]{6,}(?![A-Za-z0-9_-])",
     re.IGNORECASE,
 )
 
@@ -134,14 +138,32 @@ def iter_strings(value: Any) -> Iterable[str]:
             yield from iter_strings(item)
 
 
+def reference_keys_from_text(text: str) -> set[str]:
+    keys: set[str] = set()
+    for match in REFERENCE_NAME_RE.finditer(text):
+        basename = PurePosixPath(match.group(1)).name.lower()
+        keys.add(f"name:{basename}")
+    for match in REFERENCE_ID_RE.finditer(text):
+        keys.add(f"id:{match.group(0).lower()}")
+    return keys
+
+
+def reference_keys_for_path(path: str) -> set[str]:
+    basename = PurePosixPath(path).name.lower()
+    keys = {f"name:{basename}"}
+    for match in REFERENCE_ID_RE.finditer(path):
+        keys.add(f"id:{match.group(0).lower()}")
+    return keys
+
+
 def update_attachment_reference_index(
     refs: MutableMapping[str, MutableSet[ConversationContext]],
     context: ConversationContext,
     conversation: dict[str, Any],
 ) -> None:
     for text in iter_strings(conversation):
-        for match in MEDIA_NAME_RE.finditer(text):
-            refs.setdefault(PurePosixPath(match.group(1)).name.lower(), set()).add(context)
+        for key in reference_keys_from_text(text):
+            refs.setdefault(key, set()).add(context)
 
 
 def finalize_attachment_reference_index(
@@ -168,10 +190,19 @@ def semantic_context_for_path(
     refs: dict[str, list[ConversationContext]],
 ) -> dict[str, Any]:
     basename = PurePosixPath(path).name
-    matches = refs.get(basename.lower(), [])
+    keys = sorted(reference_keys_for_path(path))
+    matched_keys = [key for key in keys if key in refs]
+    contexts = {
+        context
+        for key in matched_keys
+        for context in refs.get(key, [])
+    }
+    matches = sorted(contexts, key=lambda c: (c.source_file, c.source_index))
+
     result: dict[str, Any] = {
         "label": f"{kind} export asset: {basename}",
         "label_source": "deterministic_path_context",
+        "reference_match": "none",
     }
     if matches:
         first = matches[0]
@@ -182,6 +213,8 @@ def semantic_context_for_path(
                 "source_file": first.source_file,
                 "source_index": first.source_index,
                 "reference_count": len(matches),
+                "reference_match": "exact",
+                "reference_keys": matched_keys,
                 "label": f"{kind} referenced by conversation {first.title or first.conversation_id or first.source_index}: {basename}",
             }
         )
