@@ -9,6 +9,10 @@ class UnsafeArchiveError(ValueError):
     pass
 
 
+def normalized_member_path(name: str) -> str:
+    return PurePosixPath(name).as_posix()
+
+
 def validate_member(info: zipfile.ZipInfo) -> None:
     path = PurePosixPath(info.filename)
     if (
@@ -16,6 +20,7 @@ def validate_member(info: zipfile.ZipInfo) -> None:
         or "\\" in info.filename
         or path.is_absolute()
         or ".." in path.parts
+        or any(ord(ch) < 32 or ord(ch) == 127 for ch in info.filename)
     ):
         raise UnsafeArchiveError(f"unsafe archive path: {info.filename!r}")
     unix_mode = (info.external_attr >> 16) & 0xFFFF
@@ -30,12 +35,20 @@ def validate_archive(zf: zipfile.ZipFile, policy: dict) -> None:
         raise UnsafeArchiveError("archive entry limit exceeded")
 
     seen_names: set[str] = set()
+    seen_normalized: set[str] = set()
     total_uncompressed = 0
     for info in members:
         validate_member(info)
         if info.filename in seen_names:
             raise UnsafeArchiveError(f"duplicate archive member rejected: {info.filename!r}")
         seen_names.add(info.filename)
+
+        normalized = normalized_member_path(info.filename)
+        if normalized in seen_normalized:
+            raise UnsafeArchiveError(
+                f"normalized archive path collision rejected: {info.filename!r}"
+            )
+        seen_normalized.add(normalized)
 
         total_uncompressed += info.file_size
         if info.file_size > int(limits["max_member_uncompressed_bytes"]):

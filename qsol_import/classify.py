@@ -16,6 +16,15 @@ AUDIO_EXTENSIONS = {".wav", ".wave", ".mp3", ".m4a", ".aac", ".flac", ".ogg", ".
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".m4v", ".webm", ".mkv", ".avi", ".mpeg", ".mpg"}
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".tif", ".tiff", ".svg"}
 EXECUTABLE_EXTENSIONS = {".exe", ".dll", ".so", ".dylib", ".msi", ".apk", ".appimage", ".bin"}
+ARCHIVE_EXTENSIONS = {".zip", ".tar", ".tgz", ".gz", ".bz2", ".xz", ".7z", ".rar"}
+
+ZIP_DOCUMENT_TYPES = {
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    ".odt": "application/vnd.oasis.opendocument.text",
+    ".ods": "application/vnd.oasis.opendocument.spreadsheet",
+    ".odp": "application/vnd.oasis.opendocument.presentation",
+}
 
 
 @dataclass(frozen=True)
@@ -50,14 +59,26 @@ def sniff_media_type(head: bytes, extension: str) -> tuple[str, str] | None:
         return "image", "image/gif"
     if head.startswith(b"%PDF-"):
         return "document", "application/pdf"
-    if head.startswith(b"PK\x03\x04"):
-        if extension == ".docx":
-            return "document", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        if extension == ".pptx":
-            return "document", "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-        return "archive", "application/zip"
+    if head.startswith(b"\x7fELF"):
+        return "executable", "application/x-elf"
     if head.startswith(b"MZ"):
         return "executable", "application/vnd.microsoft.portable-executable"
+    if head.startswith(b"PK\x03\x04"):
+        if extension in ZIP_DOCUMENT_TYPES:
+            return "document", ZIP_DOCUMENT_TYPES[extension]
+        return "archive", "application/zip"
+    if head.startswith(b"\x1f\x8b"):
+        return "archive", "application/gzip"
+    if head.startswith(b"BZh"):
+        return "archive", "application/x-bzip2"
+    if head.startswith(b"\xfd7zXZ\x00"):
+        return "archive", "application/x-xz"
+    if head.startswith(b"7z\xbc\xaf'\x1c"):
+        return "archive", "application/x-7z-compressed"
+    if head.startswith(b"Rar!\x1a\x07"):
+        return "archive", "application/vnd.rar"
+    if len(head) >= 262 and head[257:262] == b"ustar":
+        return "archive", "application/x-tar"
     return None
 
 
@@ -79,6 +100,8 @@ def classify_file(path: str, size_bytes: int, head: bytes, policy: dict) -> File
             kind, media_type = "image", "application/octet-stream"
         elif extension in EXECUTABLE_EXTENSIONS:
             kind, media_type = "executable", "application/octet-stream"
+        elif extension in ARCHIVE_EXTENSIONS:
+            kind, media_type = "archive", "application/octet-stream"
 
     if kind in {"audio", "video"}:
         return FileClassification(kind, media_type, policy[kind]["default"], "media_policy")
@@ -88,7 +111,7 @@ def classify_file(path: str, size_bytes: int, head: bytes, policy: dict) -> File
     if kind == "document":
         return FileClassification(kind, media_type, "extract", "document_policy")
     if kind == "structured_text":
-        return FileClassification(kind, media_type, "keep", "structured_text_policy")
+        return FileClassification(kind, media_type, policy["structured_text"]["default"], "structured_text_policy")
     if kind == "executable":
         return FileClassification(kind, media_type, "reject", "executable_policy")
     if kind == "archive":

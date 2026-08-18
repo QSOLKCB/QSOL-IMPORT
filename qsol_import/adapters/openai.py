@@ -4,13 +4,13 @@ import re
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import PurePosixPath
-from typing import Any, Iterable
+from typing import Any, Iterable, MutableMapping, MutableSet
 
 from qsol_import.canonical import loads_strict
 
 
 CONVERSATION_FILE_RE = re.compile(
-    r"(?:^|/)(?P<stem>conversations?)(?:[-_]?(?P<number>[0-9]+))?\.json$",
+    r"^(?P<stem>conversations?)(?:[-_]?(?P<number>[0-9]+))?\.json$",
     re.IGNORECASE,
 )
 MEDIA_NAME_RE = re.compile(
@@ -28,16 +28,15 @@ class ConversationContext:
 
 
 def is_conversation_file(path: str) -> bool:
-    return bool(CONVERSATION_FILE_RE.search(path))
+    return bool(CONVERSATION_FILE_RE.fullmatch(path))
 
 
-def conversation_file_sort_key(path: str) -> tuple[bytes, int, bytes]:
-    match = CONVERSATION_FILE_RE.search(path)
+def conversation_file_sort_key(path: str) -> tuple[int, bytes]:
+    match = CONVERSATION_FILE_RE.fullmatch(path)
     if match is None:
         raise ValueError(f"not a conversation file: {path!r}")
-    parent = PurePosixPath(path).parent.as_posix().encode("utf-8")
     number = int(match.group("number")) if match.group("number") is not None else -1
-    return parent, number, path.encode("utf-8")
+    return number, path.encode("utf-8")
 
 
 def load_conversations(data: bytes) -> list[dict[str, Any]]:
@@ -62,6 +61,16 @@ def context_for(conversation: dict[str, Any], source_file: str, source_index: in
         source_file,
         source_index,
     )
+
+
+def _normalized_time(value: Any) -> int | float | str | None:
+    if value is None or isinstance(value, str):
+        return value
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return value
+    return None
 
 
 def iter_message_records(
@@ -105,8 +114,8 @@ def iter_message_records(
             "children_node_ids": [str(child) for child in children],
             "author_role": str(author["role"]) if author.get("role") is not None else None,
             "author_name": str(author["name"]) if author.get("name") is not None else None,
-            "create_time": message.get("create_time"),
-            "update_time": message.get("update_time"),
+            "create_time": _normalized_time(message.get("create_time")),
+            "update_time": _normalized_time(message.get("update_time")),
             "status": str(message["status"]) if message.get("status") is not None else None,
             "recipient": str(message["recipient"]) if message.get("recipient") is not None else None,
             "content_type": str(content["content_type"]) if content.get("content_type") is not None else None,
@@ -125,18 +134,32 @@ def iter_strings(value: Any) -> Iterable[str]:
             yield from iter_strings(item)
 
 
-def build_attachment_reference_index(
-    conversations: list[tuple[ConversationContext, dict[str, Any]]],
+def update_attachment_reference_index(
+    refs: MutableMapping[str, MutableSet[ConversationContext]],
+    context: ConversationContext,
+    conversation: dict[str, Any],
+) -> None:
+    for text in iter_strings(conversation):
+        for match in MEDIA_NAME_RE.finditer(text):
+            refs.setdefault(PurePosixPath(match.group(1)).name.lower(), set()).add(context)
+
+
+def finalize_attachment_reference_index(
+    refs: MutableMapping[str, MutableSet[ConversationContext]],
 ) -> dict[str, list[ConversationContext]]:
-    refs: dict[str, set[ConversationContext]] = defaultdict(set)
-    for ctx, conversation in conversations:
-        for text in iter_strings(conversation):
-            for match in MEDIA_NAME_RE.finditer(text):
-                refs[PurePosixPath(match.group(1)).name.lower()].add(ctx)
     return {
         key: sorted(value, key=lambda c: (c.source_file, c.source_index))
         for key, value in refs.items()
     }
+
+
+def build_attachment_reference_index(
+    conversations: list[tuple[ConversationContext, dict[str, Any]]],
+) -> dict[str, list[ConversationContext]]:
+    refs: dict[str, set[ConversationContext]] = defaultdict(set)
+    for context, conversation in conversations:
+        update_attachment_reference_index(refs, context, conversation)
+    return finalize_attachment_reference_index(refs)
 
 
 def semantic_context_for_path(

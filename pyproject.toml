@@ -16,3 +16,6 @@ qsol-import = "qsol_import.__main__:main"
 
 [tool.setuptools.packages.find]
 include = ["qsol_import*"]
+
+[tool.setuptools.package-data]
+"qsol_import.policies" = ["*.json"]
