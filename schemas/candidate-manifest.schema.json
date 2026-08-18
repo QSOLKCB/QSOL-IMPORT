@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qsol.example/schemas/qsol-import-candidate-manifest-1.json",
+  "title": "QSOL-IMPORT Candidate Manifest v1",
+  "type": "object",
+  "required": ["protocol", "schema_version", "authority", "source_type", "profile", "input_sha256", "policy_sha256", "implementation_sha256", "concap_roles_assigned", "import_receipt_path", "artifacts", "boundaries", "candidate_sha256"],
+  "properties": {
+    "protocol": {"const": "QSOL-IMPORT/CANDIDATE-MANIFEST/1"},
+    "schema_version": {"const": "1.0.0"},
+    "authority": {"const": "candidate-only"},
+    "source_type": {"type": "string"},
+    "profile": {"type": "string"},
+    "input_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "policy_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "implementation_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "concap_roles_assigned": {"const": false},
+    "import_receipt_path": {"const": "IMPORT.json"},
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "sha256", "size_bytes"],
+        "properties": {
+          "path": {"type": "string", "minLength": 1},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "size_bytes": {"type": "integer", "minimum": 0}
+        },
+        "additionalProperties": false
+      }
+    },
+    "boundaries": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "candidate_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": false
+}

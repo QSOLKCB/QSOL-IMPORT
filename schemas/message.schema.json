@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qsol.example/schemas/qsol-import-message-1.json",
+  "title": "QSOL-IMPORT OpenAI Message v1",
+  "type": "object",
+  "required": ["protocol", "source_file", "source_index", "source_node_index", "source_node_id", "conversation_id", "conversation_title", "source_message_id", "parent_node_id", "children_node_ids", "author_role", "author_name", "create_time", "update_time", "status", "recipient", "content_type", "message"],
+  "properties": {
+    "protocol": {"const": "QSOL-IMPORT/OPENAI-MESSAGE/1"},
+    "source_file": {"type": "string"},
+    "source_index": {"type": "integer", "minimum": 0},
+    "source_node_index": {"type": "integer", "minimum": 0},
+    "source_node_id": {"type": "string"},
+    "conversation_id": {"type": ["string", "null"]},
+    "conversation_title": {"type": ["string", "null"]},
+    "source_message_id": {"type": ["string", "null"]},
+    "parent_node_id": {"type": ["string", "null"]},
+    "children_node_ids": {"type": "array", "items": {"type": "string"}},
+    "author_role": {"type": ["string", "null"]},
+    "author_name": {"type": ["string", "null"]},
+    "create_time": {"type": ["number", "string", "null"]},
+    "update_time": {"type": ["number", "string", "null"]},
+    "status": {"type": ["string", "null"]},
+    "recipient": {"type": ["string", "null"]},
+    "content_type": {"type": ["string", "null"]},
+    "message": {"type": "object"}
+  },
+  "additionalProperties": false
+}
