@@ -27,10 +27,21 @@
     "candidate_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "context_decision_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "decision": {"enum": ["accepted", "rejected", "partially_accepted"]},
-    "accepted_artifacts": {"type": "array", "items": {"$ref": "#/$defs/artifact"}},
-    "rejected_artifacts": {"type": "array", "items": {"$ref": "#/$defs/rejectedArtifact"}},
+    "accepted_artifacts": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {"$ref": "#/$defs/artifact"}
+    },
+    "rejected_artifacts": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {"$ref": "#/$defs/rejectedArtifact"}
+    },
     "control_pack_spec_path": {"type": ["string", "null"]},
-    "control_pack_spec_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "control_pack_spec_sha256": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$"
+    },
     "concap_roles_assigned": {"const": false},
     "thoth_route_receipt": {
       "oneOf": [
@@ -38,16 +49,38 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["sha256_before", "sha256_after", "unchanged"],
+          "required": [
+            "protocol",
+            "decision_sha256",
+            "file_sha256_before",
+            "file_sha256_after",
+            "unchanged"
+          ],
           "properties": {
-            "sha256_before": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-            "sha256_after": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            "protocol": {"const": "QSOL-THOTH/ROUTE-DECISION/1"},
+            "decision_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "file_sha256_before": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "file_sha256_after": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
             "unchanged": {"const": true}
           }
         }
       ]
     },
-    "boundaries": {"type": "array", "minItems": 6, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "boundaries": {
+      "type": "array",
+      "minItems": 6,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
     "handoff_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
   },
   "$defs": {
