@@ -58,12 +58,16 @@ Claude and Gemini adapters intentionally support narrow conformance shapes and f
 
 - [x] Define an explicit candidate manifest consumable by QSOL-CONTEXT review policy.
 - [x] Define `QSOL-CONTEXT/IMPORT-DECISION/1` for exact accepted, rejected, or partially accepted artifact dispositions.
-- [x] Verify candidate, import receipt, artifact, review-policy, and decision identities before staging.
+- [x] Verify the candidate self-receipt, complete file set, artifact identities, required boundaries, and absence of unlisted or symlinked files.
+- [x] Verify the complete import receipt shape, non-negative counters, counter totals, self-receipt, candidate bindings, and recomputed `output_sha256`.
+- [x] Verify review-policy and CONTEXT decision identities before staging.
 - [x] Require every candidate artifact to be decided exactly once.
 - [x] Preserve QSOL-CONTEXT as acceptance authority and prohibit CONCAP-role assignment in import decisions.
 - [x] Emit `QSOL-IMPORT/CONTROL-HANDOFF/1` with deterministic accepted and rejected summaries.
 - [x] Stage accepted candidate artifacts into a `qsol-control-restore-pack-spec/1` source tree.
 - [x] Emit no CONTROL pack specification for a fully rejected candidate.
+- [x] Reject handoff destinations that overlap source inputs or are existing regular files or symlinks.
+- [x] Validate the complete THOTH route-decision contract and self-receipt before binding it.
 - [x] Verify optional THOTH route-receipt bytes remain unchanged throughout handoff staging.
 - [x] Document the separation between candidate acceptance, CONTROL packing, CONTEXT export policy, and THOTH routing.
 
@@ -73,21 +77,29 @@ IMPORT_DECISION != FACTUAL_AUTHORITY
 CONTROL_PACK_SPEC != CONCAP_ROLE_BINDING
 CANDIDATE_MANIFEST != CONCAP_EXPORT_SPEC
 IMPORT_ACCEPTANCE != ROUTING
+RECEIPT_HASH != RECEIPT_VERIFICATION
 ```
 
 ## Phase 5 - Evaluation
 
-- [x] Measure source archive bytes, source member bytes, candidate bytes, retained bytes, normalized bytes, extracted text, tombstoned bytes, and rejected bytes.
-- [x] Define explicit conversation, message, attachment-reference, and negative-space retention obligations.
+- [x] Bind evaluation source bytes to the candidate `input_sha256`.
+- [x] Require every evaluation input report and JSONL file to be a verified candidate artifact.
+- [x] Measure source archive bytes, validated source-member bytes, candidate bytes, retained bytes, normalized bytes, extracted text, tombstoned bytes, and rejected bytes.
+- [x] Validate classification paths, non-negative sizes, unique membership, decisions, and exact disposition counts against `IMPORT.json`.
+- [x] Define explicit, authority-bounded, self-receipted conversation, message, attachment-reference, and negative-space retention obligations.
+- [x] Scan forbidden fragments across all verified carried artifacts in bounded overlapping windows.
 - [x] Keep byte reduction, semantic retention, and factual authority separate.
-- [x] Emit `unassessed` rather than pass or fail when semantic obligations are absent.
+- [x] Emit `unassessed` rather than pass or fail when semantic obligations are absent or empty.
 - [x] Add a declared adversarial fixture matrix covering malformed JSON, duplicate JSON members, non-finite values, disguised media, duplicate ZIP members, normalized collisions, decompression bombs, TAR links, and traversal.
-- [x] Add complete-tree byte comparison receipts.
+- [x] Add complete-tree byte comparison receipts that reject file and directory symlinks before filtering entry types.
 - [x] Document and test the portability boundary for CPython 3.11 through 3.13 on Linux, macOS, and Windows.
 - [x] Add QSOL-ARK and THOTH clean-room conformance receipts with separate route, style, factual, historical, transport, and negative-space dimensions.
-- [x] Verify portable object identities across local-directory, archive, static-HTTP, and capability-relay transport profiles.
-- [x] Require an explicit execution-receipt hash before classifying a clean-room observation as externally executed.
+- [x] Require a non-empty observation trial identifier and exact clean-room declarations.
+- [x] Verify exact portable-object inventory equality across local-directory, archive, static-HTTP, and capability-relay transport profiles, with no extra side-input files.
+- [x] Require a complete, self-receipted `QSOL-IMPORT/EXTERNAL-EXECUTION-RECEIPT/1` file before classifying a clean-room observation as externally executed.
+- [x] Bind external execution receipts to exact observation bytes and ARK trial identity, then record the exact receipt-file SHA-256.
 - [x] Preserve `t5_ai_reconstruction_implemented: false` until an actual AI reconstruction implementation and execution evidence exist.
+- [x] Close nested ARK clean-room receipt schemas for clean-room, transport, object, and negative-space result structures.
 - [x] Forbid aggregate evaluation scores.
 
 ```text
@@ -95,6 +107,7 @@ BYTE_REDUCTION != CONTEXT_RETENTION
 SEMANTIC_COVERAGE != FACTUAL_TRUTH
 PERSONAL_CONTEXT_RECONSTRUCTION != MODEL_INSTANCE_RECONSTRUCTION
 CLEAN_ROOM_SUCCESS != ORIGINAL_ASSISTANT_CONTINUITY
+RECEIPT_HASH != RECEIPT_VERIFICATION
 AGGREGATE_SCORE = FORBIDDEN
 ```
 
@@ -137,6 +150,7 @@ DETERMINISTIC_LABEL != AI_INTERPRETATION
 BYTE_IDENTICAL_OUTPUT != FACTUAL_TRUTH
 SUPPORTED_ENVIRONMENT != ALL_FUTURE_ENVIRONMENTS
 PERSONAL_CONTEXT_RECONSTRUCTION != MODEL_INSTANCE_RECONSTRUCTION
+RECEIPT_HASH != RECEIPT_VERIFICATION
 NO_SILENT_DELETION
 CLAIMED_EXECUTION != EXECUTED
 ```
