@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qsol.example/schemas/qsol-import-retention-obligations-1.json",
+  "title": "QSOL-IMPORT Retention Obligations v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol",
+    "schema_version",
+    "required_conversation_ids",
+    "required_message_ids",
+    "required_attachment_refs",
+    "forbidden_text_fragments",
+    "boundaries"
+  ],
+  "properties": {
+    "protocol": {"const": "QSOL-IMPORT/RETENTION-OBLIGATIONS/1"},
+    "schema_version": {"const": "1.0.0"},
+    "required_conversation_ids": {"$ref": "#/$defs/strings"},
+    "required_message_ids": {"$ref": "#/$defs/strings"},
+    "required_attachment_refs": {"$ref": "#/$defs/strings"},
+    "forbidden_text_fragments": {"$ref": "#/$defs/strings"},
+    "boundaries": {"$ref": "#/$defs/strings"}
+  },
+  "$defs": {
+    "strings": {
+      "type": "array",
+      "maxItems": 100000,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    }
+  }
+}
