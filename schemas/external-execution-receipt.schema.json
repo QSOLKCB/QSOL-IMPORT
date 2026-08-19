@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qsol.example/schemas/qsol-import-external-execution-receipt-1.json",
+  "title": "QSOL-IMPORT External Execution Receipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol",
+    "schema_version",
+    "authority",
+    "record_class",
+    "observation_sha256",
+    "ark_trial_id",
+    "execution_id",
+    "executor",
+    "environment",
+    "outcome",
+    "boundaries",
+    "receipt_sha256"
+  ],
+  "properties": {
+    "protocol": {"const": "QSOL-IMPORT/EXTERNAL-EXECUTION-RECEIPT/1"},
+    "schema_version": {"const": "1.0.0"},
+    "authority": {"const": "external-execution-observation-only"},
+    "record_class": {"const": "externally-observed-clean-room"},
+    "observation_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "ark_trial_id": {"enum": ["P0", "P1", "P2", "P3"]},
+    "execution_id": {"type": "string", "minLength": 1, "maxLength": 1024},
+    "executor": {"type": "string", "minLength": 1, "maxLength": 1024},
+    "environment": {"type": "string", "minLength": 1, "maxLength": 1024},
+    "outcome": {"const": "completed"},
+    "boundaries": {
+      "type": "array",
+      "minItems": 4,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "receipt_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

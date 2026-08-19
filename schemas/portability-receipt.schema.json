@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qsol.example/schemas/qsol-import-portability-receipt-1.json",
+  "title": "QSOL-IMPORT Portability Receipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol",
+    "schema_version",
+    "python_implementation",
+    "python_version",
+    "platform",
+    "supported_python_range",
+    "supported_platforms",
+    "first_tree_sha256",
+    "second_tree_sha256",
+    "byte_identical",
+    "canonical_dependencies",
+    "excluded_dependencies",
+    "boundaries",
+    "receipt_sha256"
+  ],
+  "properties": {
+    "protocol": {"const": "QSOL-IMPORT/PORTABILITY-RECEIPT/1"},
+    "schema_version": {"const": "1.0.0"},
+    "python_implementation": {"const": "CPython"},
+    "python_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "platform": {"enum": ["linux", "darwin", "win32"]},
+    "supported_python_range": {"const": "CPython >=3.11,<3.14"},
+    "supported_platforms": {
+      "const": ["linux", "darwin", "win32"]
+    },
+    "first_tree_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "second_tree_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "byte_identical": {"type": "boolean"},
+    "canonical_dependencies": {
+      "type": "array",
+      "minItems": 4,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "excluded_dependencies": {
+      "type": "array",
+      "minItems": 5,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "boundaries": {
+      "type": "array",
+      "minItems": 5,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "receipt_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

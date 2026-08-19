@@ -1,0 +1,22 @@
+{
+  "protocol": "QSOL-IMPORT/ADVERSARIAL-FIXTURE-MANIFEST/1",
+  "schema_version": "1.0.0",
+  "generation": "deterministic-at-test-time",
+  "cases": [
+    {"id": "malformed-json", "expected": "reject"},
+    {"id": "duplicate-json-member", "expected": "reject"},
+    {"id": "nonfinite-json", "expected": "reject"},
+    {"id": "disguised-wav", "expected": "tombstone"},
+    {"id": "duplicate-zip-member", "expected": "reject"},
+    {"id": "normalized-path-collision", "expected": "reject"},
+    {"id": "decompression-bomb-ratio", "expected": "reject"},
+    {"id": "tar-symlink", "expected": "reject"},
+    {"id": "tar-traversal", "expected": "reject"}
+  ],
+  "boundaries": [
+    "FIXTURE_PASS != ALL_ARCHIVES_SAFE",
+    "DISGUISED_MEDIA != STRUCTURED_TEXT",
+    "DECOMPRESSION_LIMIT != MEMORY_PROOF",
+    "NO_SILENT_DELETION"
+  ]
+}

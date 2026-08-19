@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qsol.example/schemas/qsol-import-control-handoff-1.json",
+  "title": "QSOL-IMPORT CONTROL Handoff v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol",
+    "schema_version",
+    "authority",
+    "candidate_sha256",
+    "context_decision_sha256",
+    "decision",
+    "accepted_artifacts",
+    "rejected_artifacts",
+    "control_pack_spec_path",
+    "control_pack_spec_sha256",
+    "concap_roles_assigned",
+    "thoth_route_receipt",
+    "boundaries",
+    "handoff_sha256"
+  ],
+  "properties": {
+    "protocol": {"const": "QSOL-IMPORT/CONTROL-HANDOFF/1"},
+    "schema_version": {"const": "1.0.0"},
+    "authority": {"const": "staging-only"},
+    "candidate_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "context_decision_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "decision": {"enum": ["accepted", "rejected", "partially_accepted"]},
+    "accepted_artifacts": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {"$ref": "#/$defs/artifact"}
+    },
+    "rejected_artifacts": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {"$ref": "#/$defs/rejectedArtifact"}
+    },
+    "control_pack_spec_path": {"type": ["string", "null"]},
+    "control_pack_spec_sha256": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "concap_roles_assigned": {"const": false},
+    "thoth_route_receipt": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "protocol",
+            "decision_sha256",
+            "file_sha256_before",
+            "file_sha256_after",
+            "unchanged"
+          ],
+          "properties": {
+            "protocol": {"const": "QSOL-THOTH/ROUTE-DECISION/1"},
+            "decision_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "file_sha256_before": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "file_sha256_after": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "unchanged": {"const": true}
+          }
+        }
+      ]
+    },
+    "boundaries": {
+      "type": "array",
+      "minItems": 6,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "handoff_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "size_bytes"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "size_bytes": {"type": "integer", "minimum": 0}
+      }
+    },
+    "rejectedArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "size_bytes", "reason"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "size_bytes": {"type": "integer", "minimum": 0},
+        "reason": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qsol.example/schemas/qsol-import-retention-obligations-1.json",
+  "title": "QSOL-IMPORT Retention Obligations v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol",
+    "schema_version",
+    "authority",
+    "required_conversation_ids",
+    "required_message_ids",
+    "required_attachment_refs",
+    "forbidden_text_fragments",
+    "boundaries",
+    "obligations_sha256"
+  ],
+  "properties": {
+    "protocol": {"const": "QSOL-IMPORT/RETENTION-OBLIGATIONS/1"},
+    "schema_version": {"const": "1.0.0"},
+    "authority": {"const": "measurement-obligations-only"},
+    "required_conversation_ids": {"$ref": "#/$defs/identifiers"},
+    "required_message_ids": {"$ref": "#/$defs/identifiers"},
+    "required_attachment_refs": {"$ref": "#/$defs/identifiers"},
+    "forbidden_text_fragments": {"$ref": "#/$defs/forbiddenFragments"},
+    "boundaries": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 100000,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 16384}
+    },
+    "obligations_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "$defs": {
+    "identifiers": {
+      "type": "array",
+      "maxItems": 100000,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 16384}
+    },
+    "forbiddenFragments": {
+      "type": "array",
+      "maxItems": 256,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 16384}
+    }
+  }
+}
