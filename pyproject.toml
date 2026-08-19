@@ -4,15 +4,19 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "qsol-import"
-version = "0.3.0"
+version = "0.4.0"
 description = "Deterministic, vendor-neutral ingestion for portable AI context"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.14"
 license = {text = "MPL-2.0"}
 authors = [{name = "QSOL-IMC"}]
 dependencies = []
 
 [project.scripts]
 qsol-import = "qsol_import.__main__:main"
+qsol-import-handoff = "qsol_import.handoff:main"
+qsol-import-evaluate = "qsol_import.evaluation:main"
+qsol-import-ark-evaluate = "qsol_import.ark_cleanroom:main"
+qsol-import-portability = "qsol_import.portability:main"
 
 [tool.setuptools.packages.find]
 include = ["qsol_import*"]
