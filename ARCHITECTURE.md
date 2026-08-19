@@ -24,9 +24,12 @@ portable CONCAP objects
       |
       v
  QSOL-THOTH
+      |
+      v
+ QSOL-ARK evaluation
 ```
 
-It does not route CONCAP roles, assert truth, or make normalized input canonical.
+It does not route CONCAP roles, assert truth, make normalized input canonical, or claim model-instance reconstruction.
 
 ## Adapter boundary
 
@@ -119,6 +122,87 @@ Supports GitHub migration TAR/TAR.GZ metadata resources for issue/pull-request t
 ### Generic JSON / JSONL
 
 Provides an explicit vendor-neutral interchange adapter. JSON accepts conversations with message arrays. JSONL requires an exact conversation/thread/chat id on each message row.
+
+## Acceptance and CONTROL handoff
+
+Phase 4 separates candidate production from acceptance authority.
+
+```text
+CANDIDATE.json
+      |
+      v
+QSOL-CONTEXT/IMPORT-DECISION/1
+      |
+      v
+QSOL-IMPORT verification and staging
+      |
+      v
+qsol-control-restore-pack-spec/1
+```
+
+A CONTEXT decision binds to the exact candidate, exact `IMPORT.json` bytes, review-policy identity, and every artifact identity. Every artifact is explicitly accepted or rejected. Partial acceptance is supported.
+
+QSOL-IMPORT verifies that decision and stages accepted bytes into a source tree consumable by existing QSOL-CONTROL pack machinery. A rejected candidate produces a review receipt but no pack specification.
+
+The handoff never assigns CONCAP roles. QSOL-CONTEXT remains responsible for role-to-pack export policy after review.
+
+```text
+QSOL_CONTEXT_ACCEPTS != QSOL_IMPORT_ACCEPTS
+IMPORT_DECISION != FACTUAL_AUTHORITY
+CONTROL_HANDOFF != CONCAP_EXPORT_SPEC
+CONTROL_PACK_SPEC != CONCAP_ROLE_BINDING
+ACCEPTED_CANDIDATE != CANONICAL_CONTEXT
+```
+
+An optional THOTH route receipt can be bound during staging. Its SHA-256 must remain unchanged before and after the handoff.
+
+```text
+IMPORT_ACCEPTANCE != ROUTING
+ROUTING_RECEIPT_IMMUTABLE_DURING_HANDOFF
+```
+
+## Evaluation and recovery boundary
+
+Phase 5 measures byte reduction and semantic retention separately.
+
+`QSOL-IMPORT/EVALUATION/1` records source, candidate, retained, normalized, extracted, tombstoned, and rejected byte counts. Semantic retention is assessed only against explicit `QSOL-IMPORT/RETENTION-OBLIGATIONS/1` input.
+
+```text
+BYTE_REDUCTION != CONTEXT_RETENTION
+SEMANTIC_COVERAGE != FACTUAL_TRUTH
+UNASSESSED != FAILED
+AGGREGATE_SCORE = FORBIDDEN
+```
+
+The ARK clean-room evaluator consumes `QSOL-ARK/THOTH-EVALUATION-OBSERVATION/1` plus verified portable object bytes. It preserves separate route, style, factual, historical, transport, clean-room, and negative-space results.
+
+Synthetic conformance does not claim external model execution. An externally observed run requires an explicit execution-receipt hash.
+
+```text
+PERSONAL_CONTEXT_RECONSTRUCTION != MODEL_INSTANCE_RECONSTRUCTION
+RESTORED_STYLE != IDENTITY_PROOF
+CLEAN_ROOM_SUCCESS != ORIGINAL_ASSISTANT_CONTINUITY
+CLAIMED_EXECUTION != EXECUTED
+```
+
+## Portability boundary
+
+The verified byte-portability boundary is:
+
+```text
+CPython >=3.11,<3.14
+Linux, macOS, Windows
+```
+
+Canonical output depends on exact source, policy, implementation, and explicit contract inputs. It excludes wall clock, randomness, network, locale, absolute paths, and host identity.
+
+`QSOL-IMPORT/PORTABILITY-RECEIPT/1` compares complete output trees by relative path, byte size, and SHA-256.
+
+```text
+BYTE_IDENTICAL_OUTPUT != FACTUAL_TRUTH
+SUPPORTED_ENVIRONMENT != ALL_FUTURE_ENVIRONMENTS
+IMPLEMENTATION_CHANGE != SILENT_BASELINE_REFRESH
+```
 
 ## Alignment with QSOL-THOTH portable CONCAP delivery
 
