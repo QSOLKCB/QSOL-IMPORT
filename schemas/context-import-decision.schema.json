@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qsol.example/schemas/qsol-context-import-decision-1.json",
+  "title": "QSOL-CONTEXT Import Decision v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol",
+    "schema_version",
+    "issuer",
+    "authority",
+    "candidate_sha256",
+    "import_receipt_sha256",
+    "decision",
+    "review_policy",
+    "review_policy_sha256",
+    "artifacts",
+    "concap_roles_assigned",
+    "boundaries",
+    "decision_sha256"
+  ],
+  "properties": {
+    "protocol": {"const": "QSOL-CONTEXT/IMPORT-DECISION/1"},
+    "schema_version": {"const": "1.0.0"},
+    "issuer": {"const": "QSOL-CONTEXT"},
+    "authority": {"const": "context-acceptance-only"},
+    "candidate_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "import_receipt_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "decision": {"enum": ["accepted", "rejected", "partially_accepted"]},
+    "review_policy": {"type": "string", "minLength": 1},
+    "review_policy_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "artifacts": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256", "size_bytes", "disposition", "reason"],
+        "properties": {
+          "path": {"type": "string", "minLength": 1},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "size_bytes": {"type": "integer", "minimum": 0},
+          "disposition": {"enum": ["accept", "reject"]},
+          "reason": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "concap_roles_assigned": {"const": false},
+    "boundaries": {"type": "array", "minItems": 6, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "decision_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}
