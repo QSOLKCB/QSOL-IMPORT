@@ -30,12 +30,37 @@ class PortabilityError(ValueError):
 def tree_receipt(root: Path) -> list[dict[str, Any]]:
     if root.is_symlink() or not root.is_dir():
         raise PortabilityError("tree root must be a non-symlink directory")
+
+    files: list[Path] = []
+    for entry in root.rglob("*"):
+        # Check the entry before filtering by type. A directory symlink is not a
+        # file and Path.rglob() does not descend through it, so checking only the
+        # selected files would make a symlink-only tree look empty.
+        if entry.is_symlink():
+            raise PortabilityError(
+                f"tree contains a symlink: {entry.relative_to(root).as_posix()}"
+            )
+        if entry.is_dir():
+            continue
+        if not entry.is_file():
+            raise PortabilityError(
+                f"tree contains a non-regular entry: {entry.relative_to(root).as_posix()}"
+            )
+        files.append(entry)
+
     rows: list[dict[str, Any]] = []
-    for path in sorted((item for item in root.rglob("*") if item.is_file()), key=lambda item: item.relative_to(root).as_posix().encode("utf-8")):
-        if path.is_symlink():
-            raise PortabilityError("tree contains a symlink")
+    for path in sorted(
+        files,
+        key=lambda item: item.relative_to(root).as_posix().encode("utf-8"),
+    ):
         rel = path.relative_to(root).as_posix()
-        rows.append({"path": rel, "sha256": sha256_file(path), "size_bytes": path.stat().st_size})
+        rows.append(
+            {
+                "path": rel,
+                "sha256": sha256_file(path),
+                "size_bytes": path.stat().st_size,
+            }
+        )
     return rows
 
 
@@ -52,7 +77,9 @@ def compare_trees(first: Path, second: Path) -> dict[str, Any]:
         "protocol": PORTABILITY_PROTOCOL,
         "schema_version": SCHEMA_VERSION,
         "python_implementation": platform.python_implementation(),
-        "python_version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+        "python_version": (
+            f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+        ),
         "platform": sys.platform,
         "supported_python_range": "CPython >=3.11,<3.14",
         "supported_platforms": list(SUPPORTED_PLATFORMS),
@@ -74,21 +101,32 @@ def compare_trees(first: Path, second: Path) -> dict[str, Any]:
         ],
         "boundaries": list(BOUNDARIES),
     }
-    return {**body, "receipt_sha256": sha256_bytes(canonical_json_bytes(body))}
+    return {
+        **body,
+        "receipt_sha256": sha256_bytes(canonical_json_bytes(body)),
+    }
 
 
 def assert_supported_runtime() -> None:
     if platform.python_implementation() != "CPython":
-        raise PortabilityError("only CPython is in the verified portability boundary")
+        raise PortabilityError(
+            "only CPython is in the verified portability boundary"
+        )
     version = (sys.version_info.major, sys.version_info.minor)
     if not (SUPPORTED_PYTHON_MIN <= version <= SUPPORTED_PYTHON_MAX):
-        raise PortabilityError("CPython runtime is outside the verified 3.11-3.13 boundary")
+        raise PortabilityError(
+            "CPython runtime is outside the verified 3.11-3.13 boundary"
+        )
     if sys.platform not in SUPPORTED_PLATFORMS:
-        raise PortabilityError("platform is outside the verified Linux/macOS/Windows boundary")
+        raise PortabilityError(
+            "platform is outside the verified Linux/macOS/Windows boundary"
+        )
 
 
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Compare two QSOL-IMPORT output trees byte-for-byte")
+    parser = argparse.ArgumentParser(
+        description="Compare two QSOL-IMPORT output trees byte-for-byte"
+    )
     parser.add_argument("first", type=Path)
     parser.add_argument("second", type=Path)
     return parser
