@@ -1,9 +1,11 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
 
 from qsol_import.ark_cleanroom import ArkCleanroomError, evaluate_clean_room
 from qsol_import.canonical import canonical_json_bytes, sha256_file
+from roadmap_helpers import build_external_execution_receipt
 
 
 class ArkCleanroomTests(unittest.TestCase):
@@ -24,26 +26,47 @@ class ArkCleanroomTests(unittest.TestCase):
             "trial_id": "qsol_import_synthetic_clean_room",
             "assessment_authority": "explicit-observations-not-automatic-truth",
             "route": {
-                "selected_role_ids": ["concap.identity.core/1", "concap.workstyle.engineering/1"],
-                "required_role_ids": ["concap.identity.core/1", "concap.workstyle.engineering/1"],
-                "justified_role_ids": ["concap.identity.core/1", "concap.workstyle.engineering/1"],
+                "selected_role_ids": [
+                    "concap.identity.core/1",
+                    "concap.workstyle.engineering/1",
+                ],
+                "required_role_ids": [
+                    "concap.identity.core/1",
+                    "concap.workstyle.engineering/1",
+                ],
+                "justified_role_ids": [
+                    "concap.identity.core/1",
+                    "concap.workstyle.engineering/1",
+                ],
             },
             "style_fidelity": {
                 "obligations": [
-                    {"id": "compact_engineering_delivery", "outcome": "pass"},
-                    {"id": "receiver_style_preserved", "outcome": "pass"},
+                    {
+                        "id": "compact_engineering_delivery",
+                        "outcome": "pass",
+                    },
+                    {
+                        "id": "receiver_style_preserved",
+                        "outcome": "pass",
+                    },
                 ]
             },
             "factual_accuracy": {
                 "claims": [
                     {"id": "identity_claim", "outcome": "correct"},
-                    {"id": "optional_unverified_claim", "outcome": "unverified"},
+                    {
+                        "id": "optional_unverified_claim",
+                        "outcome": "unverified",
+                    },
                 ]
             },
             "historical_reconstruction": {
                 "obligations": [
                     {"id": "candidate_lineage", "outcome": "covered"},
-                    {"id": "unknown_external_history", "outcome": "unverified"},
+                    {
+                        "id": "unknown_external_history",
+                        "outcome": "unverified",
+                    },
                 ]
             },
             "clean_room": {
@@ -92,25 +115,38 @@ class ArkCleanroomTests(unittest.TestCase):
             )
             self.assertTrue(receipt["conformance_pass"])
             self.assertFalse(receipt["model_execution_claimed"])
+            self.assertIsNone(receipt["execution_receipt_sha256"])
             self.assertFalse(receipt["t5_ai_reconstruction_implemented"])
             self.assertFalse(receipt["aggregate_score_emitted"])
-            self.assertEqual(receipt["ark_contract_protocol"], "QSOL-ARK/PERSONAL-CONTINUITY/1")
+            self.assertEqual(
+                receipt["ark_contract_protocol"],
+                "QSOL-ARK/PERSONAL-CONTINUITY/1",
+            )
             self.assertTrue(receipt["transport_equivalence"]["pass"])
 
     def test_transport_identity_drift_fails_closed(self):
-        import json
-
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             observation_path, objects = self.build_fixture(root)
             observation = json.loads(observation_path.read_text())
-            observation["transports"][1]["objects"] = []
+            other_id = "sha256:" + "0" * 64
+            observation["transports"][1]["objects"] = [
+                {
+                    "object_id": other_id,
+                    "size_bytes": 0,
+                    "bytes_sha256": other_id,
+                }
+            ]
             observation_path.write_bytes(canonical_json_bytes(observation))
             with self.assertRaises(ArkCleanroomError) as ctx:
-                evaluate_clean_room(observation_path, objects, ark_trial_id="P1")
+                evaluate_clean_room(
+                    observation_path,
+                    objects,
+                    ark_trial_id="P1",
+                )
             self.assertEqual(ctx.exception.code, "transport_equivalence")
 
-    def test_external_execution_claim_requires_receipt_hash(self):
+    def test_external_execution_claim_requires_receipt_file(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             observation, objects = self.build_fixture(root)
@@ -123,9 +159,101 @@ class ArkCleanroomTests(unittest.TestCase):
                 )
             self.assertEqual(ctx.exception.code, "execution_receipt")
 
-    def test_private_source_dependency_is_rejected(self):
-        import json
+    def test_arbitrary_execution_hash_or_json_cannot_upgrade_record_class(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            observation, objects = self.build_fixture(root)
+            fake_receipt = root / "fake-execution.json"
+            fake_receipt.write_text(json.dumps({"receipt_sha256": "0" * 64}))
+            with self.assertRaises(ArkCleanroomError) as ctx:
+                evaluate_clean_room(
+                    observation,
+                    objects,
+                    ark_trial_id="P2",
+                    record_class="externally-observed-clean-room",
+                    execution_receipt_path=fake_receipt,
+                )
+            self.assertEqual(ctx.exception.code, "observation_fields")
 
+    def test_verified_external_execution_receipt_is_bound_to_observation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            observation, objects = self.build_fixture(root)
+            execution_receipt = root / "execution.json"
+            build_external_execution_receipt(
+                execution_receipt,
+                observation,
+                ark_trial_id="P2",
+            )
+            receipt = evaluate_clean_room(
+                observation,
+                objects,
+                ark_trial_id="P2",
+                record_class="externally-observed-clean-room",
+                execution_receipt_path=execution_receipt,
+            )
+            self.assertTrue(receipt["model_execution_claimed"])
+            self.assertEqual(
+                receipt["execution_receipt_sha256"],
+                sha256_file(execution_receipt),
+            )
+            self.assertEqual(
+                receipt["record_class"],
+                "externally-observed-clean-room",
+            )
+
+    def test_execution_receipt_for_different_observation_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            observation, objects = self.build_fixture(root)
+            other_observation = root / "other-observation.json"
+            other_observation.write_bytes(observation.read_bytes() + b"\n")
+            execution_receipt = root / "execution.json"
+            build_external_execution_receipt(
+                execution_receipt,
+                other_observation,
+                ark_trial_id="P2",
+            )
+            with self.assertRaises(ArkCleanroomError) as ctx:
+                evaluate_clean_room(
+                    observation,
+                    objects,
+                    ark_trial_id="P2",
+                    record_class="externally-observed-clean-room",
+                    execution_receipt_path=execution_receipt,
+                )
+            self.assertEqual(ctx.exception.code, "execution_receipt_observation")
+
+    def test_unreceipted_object_file_fails_clean_room_inventory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            observation, objects = self.build_fixture(root)
+            (objects / "private-unreceipted.txt").write_text("private side input")
+            with self.assertRaises(ArkCleanroomError) as ctx:
+                evaluate_clean_room(
+                    observation,
+                    objects,
+                    ark_trial_id="P1",
+                )
+            self.assertEqual(ctx.exception.code, "object_inventory_mismatch")
+
+    def test_observation_trial_identifier_must_be_nonempty_string(self):
+        for invalid in ("", 7, [], {}):
+            with self.subTest(value=invalid), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                observation_path, objects = self.build_fixture(root)
+                observation = json.loads(observation_path.read_text())
+                observation["trial_id"] = invalid
+                observation_path.write_bytes(canonical_json_bytes(observation))
+                with self.assertRaises(ArkCleanroomError) as ctx:
+                    evaluate_clean_room(
+                        observation_path,
+                        objects,
+                        ark_trial_id="P1",
+                    )
+                self.assertEqual(ctx.exception.code, "invalid_string")
+
+    def test_private_source_dependency_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             observation_path, objects = self.build_fixture(root)
@@ -133,7 +261,11 @@ class ArkCleanroomTests(unittest.TestCase):
             observation["clean_room"]["private_source_repository_access"] = True
             observation_path.write_bytes(canonical_json_bytes(observation))
             with self.assertRaises(ArkCleanroomError) as ctx:
-                evaluate_clean_room(observation_path, objects, ark_trial_id="P1")
+                evaluate_clean_room(
+                    observation_path,
+                    objects,
+                    ark_trial_id="P1",
+                )
             self.assertEqual(ctx.exception.code, "clean_room_boundary")
 
 
