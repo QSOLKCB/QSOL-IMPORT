@@ -55,7 +55,7 @@ OpenAI / xAI / Anthropic / Google / GitHub / generic JSON
                   candidate layer
 ```
 
-Canonical adapter records contain normalized source identity, ordering, role/text/timing/link fields, hashes, and dispositions. They do **not** contain a raw vendor payload field.
+Canonical adapter records contain normalized source identity, ordering, role, text, timing, link fields, hashes, and dispositions. They do **not** contain a raw vendor payload field.
 
 ```text
 VENDOR_FORMAT != CANONICAL_FORMAT
@@ -74,7 +74,7 @@ The common adapter runner accepts:
 - single JSON;
 - single JSONL.
 
-ZIP reuses the existing hostile-archive validator. TAR independently rejects traversal, backslash paths, control-character paths, duplicate/normalized collisions, links/devices/non-regular members, entry/member/total limits, and excessive archive-level compression ratio. Source bytes are read-only and re-hashed after import before output is committed.
+ZIP reuses the existing hostile-archive validator. TAR independently rejects traversal, backslash paths, control-character paths, duplicate or normalized collisions, links, devices, non-regular members, entry, member, and total limits, and excessive archive-level compression ratio. Source bytes are read-only and re-hashed after import before output is committed.
 
 ## Current adapters
 
@@ -96,7 +96,7 @@ prod-grok-backend.json
       response
 ```
 
-It preserves visible conversation/response ids, parent/child links, message text, sender, model, timestamps, and exact file attachment ids. It does not normalize `agent_thinking_traces`.
+It preserves visible conversation and response IDs, parent-child links, message text, sender, model, timestamps, and exact file attachment IDs. It does not normalize `agent_thinking_traces`.
 
 Exact source policy:
 
@@ -105,7 +105,7 @@ Exact source policy:
 - `prod-mc-asset-server/**` -> TOMBSTONE bytes;
 - `canvas_thumbnails/**` -> TOMBSTONE bytes.
 
-Asset-server ids are matched exactly to normalized message attachment references when producing tombstone semantic context.
+Asset-server IDs are matched exactly to normalized message attachment references when producing tombstone semantic context.
 
 ### Claude
 
@@ -113,15 +113,15 @@ Supports the narrow exported `conversations.json` conformance shape with convers
 
 ### Gemini
 
-Supports narrowly defined conversation/entry or flat conversation-keyed JSON shapes. Export availability does not imply a stable universal JSON schema, so unknown layouts fail closed.
+Supports narrowly defined conversation-entry or flat conversation-keyed JSON shapes. Export availability does not imply a stable universal JSON schema, so unknown layouts fail closed.
 
 ### GitHub
 
-Supports GitHub migration TAR/TAR.GZ metadata resources for issue/pull-request threads and comments. Attachment payloads are tombstoned; repository Git payloads are rejected from the conversation import surface.
+Supports GitHub migration TAR/TAR.GZ metadata resources for issue and pull-request threads and comments. Attachment payloads are tombstoned. Repository Git payloads are rejected from the conversation import surface.
 
 ### Generic JSON / JSONL
 
-Provides an explicit vendor-neutral interchange adapter. JSON accepts conversations with message arrays. JSONL requires an exact conversation/thread/chat id on each message row.
+Provides an explicit vendor-neutral interchange adapter. JSON accepts conversations with message arrays. JSONL requires an exact conversation, thread, or chat ID on each message row.
 
 ## Acceptance and CONTROL handoff
 
@@ -140,11 +140,21 @@ QSOL-IMPORT verification and staging
 qsol-control-restore-pack-spec/1
 ```
 
-A CONTEXT decision binds to the exact candidate, exact `IMPORT.json` bytes, review-policy identity, and every artifact identity. Every artifact is explicitly accepted or rejected. Partial acceptance is supported.
+Before acceptance staging, QSOL-IMPORT verifies:
 
-QSOL-IMPORT verifies that decision and stages accepted bytes into a source tree consumable by existing QSOL-CONTROL pack machinery. A rejected candidate produces a review receipt but no pack specification.
+- the candidate self-receipt and required authority boundaries;
+- every artifact path, size, and SHA-256;
+- the exact candidate file inventory, with no unlisted files or symlinks;
+- the complete import-receipt field set and non-negative counters;
+- counter arithmetic and import-receipt self-receipt;
+- candidate, source, policy, implementation, and profile bindings;
+- a recomputed `output_sha256` over the verified candidate tree.
 
-The handoff never assigns CONCAP roles. QSOL-CONTEXT remains responsible for role-to-pack export policy after review.
+A CONTEXT decision binds to that exact candidate, exact `IMPORT.json` bytes, review-policy identity, and every artifact identity. Every artifact is explicitly accepted or rejected. Partial acceptance is supported.
+
+QSOL-IMPORT verifies the decision and stages accepted bytes into a source tree consumable by existing QSOL-CONTROL pack machinery. A rejected candidate produces a review receipt but no pack specification.
+
+The handoff never assigns CONCAP roles. QSOL-CONTEXT remains responsible for role-to-pack export policy after review. Output paths that overlap source inputs, regular-file destinations, and symlink destinations fail before mutation.
 
 ```text
 QSOL_CONTEXT_ACCEPTS != QSOL_IMPORT_ACCEPTS
@@ -152,11 +162,13 @@ IMPORT_DECISION != FACTUAL_AUTHORITY
 CONTROL_HANDOFF != CONCAP_EXPORT_SPEC
 CONTROL_PACK_SPEC != CONCAP_ROLE_BINDING
 ACCEPTED_CANDIDATE != CANONICAL_CONTEXT
+FAILED_HANDOFF != DESTROYED_CANDIDATE
 ```
 
-An optional THOTH route receipt can be bound during staging. Its SHA-256 must remain unchanged before and after the handoff.
+An optional THOTH route receipt can be bound during staging. It must pass the complete `QSOL-THOTH/ROUTE-DECISION/1` contract, role-ID, authority-boundary, and canonical decision-self-receipt checks. Its exact file bytes must also remain unchanged before and after the handoff.
 
 ```text
+RECEIPT_HASH != RECEIPT_VERIFICATION
 IMPORT_ACCEPTANCE != ROUTING
 ROUTING_RECEIPT_IMMUTABLE_DURING_HANDOFF
 ```
@@ -165,20 +177,26 @@ ROUTING_RECEIPT_IMMUTABLE_DURING_HANDOFF
 
 Phase 5 measures byte reduction and semantic retention separately.
 
-`QSOL-IMPORT/EVALUATION/1` records source, candidate, retained, normalized, extracted, tombstoned, and rejected byte counts. Semantic retention is assessed only against explicit `QSOL-IMPORT/RETENTION-OBLIGATIONS/1` input.
+`QSOL-IMPORT/EVALUATION/1` records source, candidate, retained, normalized, extracted, tombstoned, and rejected byte counts. The source bytes must match `candidate.input_sha256`. Every consumed evaluation file must be a verified candidate artifact. Classification paths, sizes, decisions, and disposition counts must reproduce `IMPORT.json`.
+
+Semantic retention is assessed only against authority-bounded, self-receipted `QSOL-IMPORT/RETENTION-OBLIGATIONS/1` input. Forbidden fragments are scanned across every carried artifact in bounded overlapping windows. An absent or empty obligation set remains `unassessed`.
 
 ```text
 BYTE_REDUCTION != CONTEXT_RETENTION
 SEMANTIC_COVERAGE != FACTUAL_TRUTH
 UNASSESSED != FAILED
+OBLIGATION_SET != SOURCE_EVIDENCE
 AGGREGATE_SCORE = FORBIDDEN
 ```
 
-The ARK clean-room evaluator consumes `QSOL-ARK/THOTH-EVALUATION-OBSERVATION/1` plus verified portable object bytes. It preserves separate route, style, factual, historical, transport, clean-room, and negative-space results.
+The ARK clean-room evaluator consumes `QSOL-ARK/THOTH-EVALUATION-OBSERVATION/1` plus a verified portable-object directory. It preserves separate route, style, factual, historical, transport, clean-room, and negative-space results.
 
-Synthetic conformance does not claim external model execution. An externally observed run requires an explicit execution-receipt hash.
+The object-root inventory must exactly equal the object identities declared by all four equivalent transport profiles. Extra files, missing files, duplicates, symlinks, and non-regular entries fail closed.
+
+Synthetic conformance does not claim external model execution. An externally observed run requires a complete `QSOL-IMPORT/EXTERNAL-EXECUTION-RECEIPT/1` file bound to the exact observation bytes and ARK trial. The receipt's contract, authority, outcome, boundaries, and self-receipt are verified before its exact file SHA-256 enters the clean-room receipt.
 
 ```text
+RECEIPT_HASH != RECEIPT_VERIFICATION
 PERSONAL_CONTEXT_RECONSTRUCTION != MODEL_INSTANCE_RECONSTRUCTION
 RESTORED_STYLE != IDENTITY_PROOF
 CLEAN_ROOM_SUCCESS != ORIGINAL_ASSISTANT_CONTINUITY
@@ -196,7 +214,7 @@ Linux, macOS, Windows
 
 Canonical output depends on exact source, policy, implementation, and explicit contract inputs. It excludes wall clock, randomness, network, locale, absolute paths, and host identity.
 
-`QSOL-IMPORT/PORTABILITY-RECEIPT/1` compares complete output trees by relative path, byte size, and SHA-256.
+`QSOL-IMPORT/PORTABILITY-RECEIPT/1` compares complete output trees by relative file path, byte size, and SHA-256. File and directory symlinks are rejected before entry-type filtering, preventing a symlink-only tree from comparing equal to an empty tree.
 
 ```text
 BYTE_IDENTICAL_OUTPUT != FACTUAL_TRUTH
@@ -219,7 +237,7 @@ TRANSPORT != AUTHORITY
 
 ## Determinism boundary
 
-The canonical import path uses exact bytes, explicit policy, strict JSON parsing, stable ordering, SHA-256 receipts, and no network/LLM/embedding/random/clock dependency.
+The canonical import path uses exact bytes, explicit policy, strict JSON parsing, stable ordering, SHA-256 receipts, and no network, LLM, embedding, random, or clock dependency.
 
 Optional semantic enrichment belongs in a non-canonical projection layer and must never replace deterministic source-derived labels.
 
