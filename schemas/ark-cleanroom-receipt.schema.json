@@ -30,13 +30,18 @@
     "protocol": {"const": "QSOL-IMPORT/ARK-CLEANROOM-RECEIPT/1"},
     "schema_version": {"const": "1.0.0"},
     "authority": {"const": "measurement-contract-only"},
-    "record_class": {"enum": ["synthetic-conformance", "externally-observed-clean-room"]},
+    "record_class": {
+      "enum": ["synthetic-conformance", "externally-observed-clean-room"]
+    },
     "ark_contract_protocol": {"const": "QSOL-ARK/PERSONAL-CONTINUITY/1"},
     "thoth_policy_protocol": {"const": "QSOL-THOTH/ARK-EVALUATION-POLICY/1"},
     "ark_trial_id": {"enum": ["P0", "P1", "P2", "P3"]},
-    "observation_trial_id": {"type": "string", "minLength": 1},
+    "observation_trial_id": {"type": "string", "minLength": 1, "maxLength": 1024},
     "observation_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-    "execution_receipt_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "execution_receipt_sha256": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$"
+    },
     "model_execution_claimed": {"type": "boolean"},
     "t5_ai_reconstruction_implemented": {"const": false},
     "metrics": {
@@ -45,26 +50,128 @@
       "maxItems": 5,
       "items": {
         "type": "object",
+        "additionalProperties": false,
         "required": ["id", "status", "numerator", "denominator", "basis_points"],
         "properties": {
-          "id": {"type": "string", "minLength": 1},
+          "id": {
+            "enum": [
+              "route_sufficiency",
+              "route_minimality",
+              "style_fidelity",
+              "factual_accuracy",
+              "historical_reconstruction_coverage"
+            ]
+          },
           "status": {"enum": ["pass", "fail", "unassessed"]},
           "numerator": {"type": "integer", "minimum": 0},
           "denominator": {"type": "integer", "minimum": 0},
-          "basis_points": {"type": ["integer", "null"]},
+          "basis_points": {"type": ["integer", "null"], "minimum": 0, "maximum": 10000},
           "passed": {"type": "integer", "minimum": 0},
           "failed": {"type": "integer", "minimum": 0},
           "unassessed": {"type": "integer", "minimum": 0}
-        },
-        "additionalProperties": false
+        }
       }
     },
-    "clean_room": {"type": "object"},
-    "transport_equivalence": {"type": "object"},
-    "negative_space": {"type": "object"},
+    "clean_room": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "portable_inputs_only",
+        "private_source_repository_access",
+        "private_context_connector_access",
+        "hidden_provider_memory_dependency",
+        "pass"
+      ],
+      "properties": {
+        "portable_inputs_only": {"const": true},
+        "private_source_repository_access": {"const": false},
+        "private_context_connector_access": {"const": false},
+        "hidden_provider_memory_dependency": {"const": false},
+        "pass": {"const": true}
+      }
+    },
+    "transport_equivalence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profiles", "objects", "pass"],
+      "properties": {
+        "profiles": {
+          "const": [
+            "local-directory",
+            "archive",
+            "static-http",
+            "capability-relay"
+          ]
+        },
+        "objects": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10000,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["object_id", "size_bytes", "bytes_sha256"],
+            "properties": {
+              "object_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+              "size_bytes": {"type": "integer", "minimum": 0, "maximum": 2147483648},
+              "bytes_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+            }
+          }
+        },
+        "pass": {"const": true}
+      }
+    },
+    "negative_space": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "style_leakage",
+        "unsupported_historical_interpolation",
+        "accidental_private_source_dependency",
+        "pass"
+      ],
+      "properties": {
+        "style_leakage": {"type": "boolean"},
+        "unsupported_historical_interpolation": {"type": "boolean"},
+        "accidental_private_source_dependency": {"type": "boolean"},
+        "pass": {"type": "boolean"}
+      }
+    },
     "conformance_pass": {"type": "boolean"},
     "aggregate_score_emitted": {"const": false},
-    "boundaries": {"type": "array", "minItems": 12, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "boundaries": {
+      "type": "array",
+      "minItems": 12,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
     "receipt_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"record_class": {"const": "synthetic-conformance"}},
+        "required": ["record_class"]
+      },
+      "then": {
+        "properties": {
+          "execution_receipt_sha256": {"const": null},
+          "model_execution_claimed": {"const": false}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"record_class": {"const": "externally-observed-clean-room"}},
+        "required": ["record_class"]
+      },
+      "then": {
+        "properties": {
+          "execution_receipt_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "model_execution_claimed": {"const": true}
+        }
+      }
+    }
+  ]
 }
