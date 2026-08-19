@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qsol.example/schemas/qsol-import-evaluation-1.json",
+  "title": "QSOL-IMPORT Evaluation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol",
+    "schema_version",
+    "authority",
+    "source_sha256",
+    "candidate_sha256",
+    "obligations_sha256",
+    "byte_metrics",
+    "semantic_retention",
+    "aggregate_score_emitted",
+    "boundaries",
+    "evaluation_sha256"
+  ],
+  "properties": {
+    "protocol": {"const": "QSOL-IMPORT/EVALUATION/1"},
+    "schema_version": {"const": "1.0.0"},
+    "authority": {"const": "measurement-only"},
+    "source_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "candidate_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "obligations_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "byte_metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_archive_bytes",
+        "source_member_uncompressed_bytes",
+        "candidate_artifact_bytes",
+        "verbatim_carried_bytes",
+        "normalized_conversation_bytes",
+        "normalized_message_bytes",
+        "extracted_text_bytes",
+        "tombstoned_source_bytes",
+        "rejected_source_bytes",
+        "archive_to_candidate",
+        "member_bytes_to_verbatim_carried"
+      ],
+      "properties": {
+        "source_archive_bytes": {"type": "integer", "minimum": 0},
+        "source_member_uncompressed_bytes": {"type": "integer", "minimum": 0},
+        "candidate_artifact_bytes": {"type": "integer", "minimum": 0},
+        "verbatim_carried_bytes": {"type": "integer", "minimum": 0},
+        "normalized_conversation_bytes": {"type": "integer", "minimum": 0},
+        "normalized_message_bytes": {"type": "integer", "minimum": 0},
+        "extracted_text_bytes": {"type": "integer", "minimum": 0},
+        "tombstoned_source_bytes": {"type": "integer", "minimum": 0},
+        "rejected_source_bytes": {"type": "integer", "minimum": 0},
+        "archive_to_candidate": {"$ref": "#/$defs/reduction"},
+        "member_bytes_to_verbatim_carried": {"$ref": "#/$defs/reduction"}
+      }
+    },
+    "semantic_retention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "conversation_retention", "message_retention", "attachment_reference_retention", "negative_space"],
+      "properties": {
+        "status": {"enum": ["pass", "fail", "unassessed"]},
+        "conversation_retention": {"$ref": "#/$defs/coverage"},
+        "message_retention": {"$ref": "#/$defs/coverage"},
+        "attachment_reference_retention": {"$ref": "#/$defs/coverage"},
+        "negative_space": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "forbidden_fragments_found"],
+          "properties": {
+            "status": {"enum": ["pass", "fail", "unassessed"]},
+            "forbidden_fragments_found": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
+          }
+        }
+      }
+    },
+    "aggregate_score_emitted": {"const": false},
+    "boundaries": {"type": "array", "minItems": 6, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "evaluation_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "$defs": {
+    "ratio": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["numerator", "denominator", "basis_points", "status"],
+      "properties": {
+        "numerator": {"type": "integer", "minimum": 0},
+        "denominator": {"type": "integer", "minimum": 0},
+        "basis_points": {"type": ["integer", "null"]},
+        "status": {"enum": ["measured", "unassessed"]}
+      }
+    },
+    "reduction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["original_bytes", "emitted_bytes", "reduction_bytes", "reduction_basis_points", "status"],
+      "properties": {
+        "original_bytes": {"type": "integer", "minimum": 0},
+        "emitted_bytes": {"type": "integer", "minimum": 0},
+        "reduction_bytes": {"type": ["integer", "null"]},
+        "reduction_basis_points": {"type": ["integer", "null"]},
+        "status": {"enum": ["measured", "unassessed"]}
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "required", "covered", "missing", "coverage"],
+      "properties": {
+        "status": {"enum": ["pass", "fail", "unassessed"]},
+        "required": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "covered": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "missing": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "coverage": {"$ref": "#/$defs/ratio"}
+      }
+    }
+  }
+}
