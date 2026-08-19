@@ -1,4 +1,4 @@
-# QSOL-IMPORT — AI Bootstrap
+# QSOL-IMPORT - AI Bootstrap
 
 ## One-line role
 
@@ -13,7 +13,8 @@ Do not reinterpret QSOL-IMPORT as:
 - a replacement for QSOL-CONTEXT;
 - a transport layer;
 - an LLM summarizer;
-- a backup system that promises verbatim recovery.
+- a backup system that promises verbatim recovery;
+- a model-instance reconstruction system.
 
 Canonical invariants:
 
@@ -31,6 +32,7 @@ RESOLUTION != TRANSPORT
 TRANSPORT != AUTHORITY
 VENDOR_FORMAT != CANONICAL_FORMAT
 VENDOR_PAYLOAD != CANONICAL_RECORD
+PERSONAL_CONTEXT_RECONSTRUCTION != MODEL_INSTANCE_RECONSTRUCTION
 CLAIMED_EXECUTION != EXECUTED
 ```
 
@@ -102,6 +104,100 @@ The common runner accepts ZIP, TAR/TAR.GZ, JSON, and JSONL.
 
 It rejects traversal, non-canonical backslash paths, control-character paths, duplicate/normalized collisions, links/devices/non-regular TAR members, oversized members/totals, and excessive compression ratios. Source bytes are never modified and are re-hashed before output commit.
 
+## QSOL-CONTEXT acceptance handoff
+
+QSOL-CONTEXT is the acceptance authority. QSOL-IMPORT verifies and stages its exact decision receipt.
+
+```bash
+python -m qsol_import.handoff verify \
+  /path/to/import-output \
+  /path/to/CONTEXT-DECISION.json
+
+python -m qsol_import.handoff stage \
+  /path/to/import-output \
+  /path/to/CONTEXT-DECISION.json \
+  --output /path/to/control-handoff \
+  --privacy-class RESTRICTED \
+  --recovery-class OUTER_SHELL
+```
+
+Contracts:
+
+```text
+QSOL-CONTEXT/IMPORT-DECISION/1
+QSOL-IMPORT/CONTROL-HANDOFF/1
+qsol-control-restore-pack-spec/1
+```
+
+The CONTEXT decision must cover every candidate artifact exactly once. Partial acceptance is valid. A rejected candidate yields a review receipt but no CONTROL pack specification.
+
+The handoff assigns no CONCAP roles. A caller may bind a THOTH route receipt so its SHA-256 is proven unchanged during staging.
+
+```text
+QSOL_CONTEXT_ACCEPTS != QSOL_IMPORT_ACCEPTS
+CONTROL_HANDOFF != CONCAP_EXPORT_SPEC
+CONTROL_PACK_SPEC != CONCAP_ROLE_BINDING
+IMPORT_ACCEPTANCE != ROUTING
+```
+
+## Retention evaluation
+
+```bash
+python -m qsol_import.evaluation \
+  /path/to/source.zip \
+  /path/to/import-output \
+  --obligations /path/to/retention-obligations.json \
+  --output /path/to/evaluation.json
+```
+
+Contracts:
+
+```text
+QSOL-IMPORT/RETENTION-OBLIGATIONS/1
+QSOL-IMPORT/EVALUATION/1
+```
+
+The evaluator keeps byte reduction, conversation retention, message retention, attachment-reference retention, and negative-space findings separate. It emits no aggregate score. Without an obligation file, semantic retention is `unassessed`.
+
+```text
+BYTE_REDUCTION != CONTEXT_RETENTION
+SEMANTIC_COVERAGE != FACTUAL_TRUTH
+UNASSESSED != FAILED
+AGGREGATE_SCORE = FORBIDDEN
+```
+
+## ARK clean-room evaluation
+
+```bash
+python -m qsol_import.ark_cleanroom \
+  /path/to/observation.json \
+  /path/to/portable-objects \
+  --ark-trial P1 \
+  --record-class synthetic-conformance \
+  --output /path/to/ark-receipt.json
+```
+
+The evaluator verifies the public THOTH observation shape, QSOL-ARK P0-P3 trial identity, clean-room declarations, exact portable object bytes, four transport profiles, five separate measurement dimensions, and negative-space checks.
+
+Synthetic conformance sets `model_execution_claimed: false` and `t5_ai_reconstruction_implemented: false`. An externally observed run requires an explicit external execution receipt hash.
+
+## Portability boundary
+
+Verified runtime boundary:
+
+```text
+CPython >=3.11,<3.14
+Linux, macOS, Windows
+```
+
+Compare complete output trees with:
+
+```bash
+python -m qsol_import.portability /path/to/run-a /path/to/run-b
+```
+
+The resulting `QSOL-IMPORT/PORTABILITY-RECEIPT/1` proves byte equality only. It grants no truth authority.
+
 ## Phase 1 OpenAI hardening retained
 
 - Discovers `conversations.json` and deterministic numbered variants.
@@ -113,10 +209,17 @@ It rejects traversal, non-canonical backslash paths, control-character paths, du
 
 ## Real OpenAI snapshot validation
 
-`python -m qsol_import.validation export-old.zip export-new.zip --output validation.json`
+```bash
+python -m qsol_import.validation \
+  export-old.zip \
+  export-new.zip \
+  --output validation.json
+```
 
-The validation harness requires at least two byte-distinct snapshots, imports each twice, and compares complete emitted trees. Synthetic fixtures do **not** satisfy the roadmap claim "validated against multiple real personal ChatGPT export snapshots".
+The validation harness requires at least two byte-distinct snapshots, imports each twice, and compares complete emitted trees.
+
+This remains an external evidence gate. Synthetic fixtures do not satisfy the claim "validated against multiple real personal ChatGPT export snapshots".
 
 ## THOTH relationship
 
-QSOL-IMPORT sits upstream of QSOL-CONTEXT. QSOL-CONTEXT decides acceptance/export policy. QSOL-CONTROL packages approved immutable objects. QSOL-THOTH remains the deterministic semantic router and should never inspect raw vendor exports merely to route context.
+QSOL-IMPORT sits upstream of QSOL-CONTEXT. QSOL-CONTEXT decides acceptance/export policy. QSOL-CONTROL packages approved immutable objects. QSOL-THOTH remains the deterministic semantic router. QSOL-ARK owns recovery semantics and clean-room evaluation.
